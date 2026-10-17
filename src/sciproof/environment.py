@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess  # noqa: S404  (used to ask the recorded interpreter for its version)
 import sys
@@ -77,11 +78,19 @@ def _own_interpreter_info() -> dict[str, Any]:
     }
 
 
+_INTERPRETER_NAME = re.compile(r"^(py|pythonw?(\d+(\.\d+)*[dt]*)?|pypy(\d+(\.\d+)*)?)$")
+
+
 def _looks_like_python(executable: str) -> bool:
+    """True only for names of real interpreters (``python``, ``python3.13``, ``py``, ``pypy3``).
+
+    The probe runs ``<executable> -c <snippet>``; running it on ``python_train.sh`` or
+    ``python-config`` would execute the user's own program with unexpected arguments.
+    """
     name = Path(executable).name.lower()
     if name.endswith(".exe"):
         name = name[:-4]
-    return name in {"py"} or name.startswith("python")
+    return bool(_INTERPRETER_NAME.fullmatch(name))
 
 
 def interpreter_info(argv0: str, cwd: Path) -> tuple[dict[str, Any], str]:

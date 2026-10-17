@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 import shutil
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -180,101 +181,112 @@ def capture(
                 "inputs must be read-only. No evidence was written."
             )
 
-    snapshots = base / snapshot_dir_name(name)
-    output_records: list[dict[str, Any]] = []
-    for relative in exact_paths + numeric_paths:
-        numeric = relative in numeric_paths
-        target = base / relative
-        record: dict[str, Any] = {"path": relative}
-        if target.is_dir() and not numeric:
-            record.update(present=True, **_tree(target, f"output {relative!r}"))
-            if before[relative] == record["sha256"]:
-                warnings.append(
-                    f"output {relative!r} existed before the run and was not changed by it"
-                )
-        elif target.is_dir():
-            raise CaptureError(
-                f"numeric output {relative!r} is a directory; --output-numeric needs a file"
-            )
-        elif target.is_file():
-            digest, size = sha256_file(target)
-            record.update(present=True, sha256=digest, size=size)
-            if before[relative] == digest:
-                warnings.append(
-                    f"output {relative!r} existed before the run and was not changed by it"
-                )
-        elif result.exit_code == 0:
-            raise CaptureError(
-                f"the command succeeded but the declared output {relative!r} does not exist. "
-                "No evidence was written."
-            )
-        else:
-            record.update(present=False, sha256=None, size=0)
-            if numeric:
-                raise CaptureError(
-                    f"the command failed and the numeric output {relative!r} does not exist"
-                )
-
-        if numeric:
-            try:
-                load_numeric(target)
-            except NumericFormatError as exc:
-                raise CaptureError(str(exc)) from exc
-            snapshots.mkdir(exist_ok=True)
-            snapshot_name = f"{len(output_records)}-{target.name}"
-            shutil.copyfile(target, snapshots / snapshot_name)
-            snapshot_digest, _ = sha256_file(snapshots / snapshot_name)
-            record["compare"] = {
-                "mode": "numeric",
-                "rtol": rtol,
-                "atol": atol,
-                "snapshot": {
-                    "path": f"{snapshot_dir_name(name)}/{snapshot_name}",
-                    "sha256": snapshot_digest,
-                },
-            }
-        else:
-            record["compare"] = {"mode": "exact"}
-        output_records.append(record)
-
-    uses_directories = any(
-        item.get("kind") == "directory" for item in [*input_records, *output_records]
-    )
-    manifest: dict[str, Any] = {
-        "schema": SCHEMA,
-        "schema_version": SCHEMA_VERSION_DIRECTORIES if uses_directories else SCHEMA_VERSION,
-        "name": name,
-        "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
-        "tool": {"name": "sciproof", "version": __version__},
-        "command": {"argv": list(argv), "cwd": "."},
-        "environment": {
-            "source": interpreter_source,
-            "python": {
-                "version": interpreter["version"],
-                "implementation": interpreter["implementation"],
-                "byteorder": interpreter.get("byteorder", ""),
-            },
-            "platform": platform_info(),
-            "env_vars": selected_env_vars(),
-        },
-        "dependencies": [
-            {"name": pkg_name, "version": pkg_version}
-            for pkg_name, pkg_version in interpreter["packages"]
-        ],
-        "git": git,
-        "inputs": input_records,
-        "execution": {
-            "exit_code": result.exit_code,
-            "duration_seconds": round(result.duration_seconds, 3),
-            "stdout": summarize_stream(result.stdout, max_log_bytes),
-            "stderr": summarize_stream(result.stderr, max_log_bytes),
-        },
-        "outputs": output_records,
-    }
+    # Snapshots are written to a staging directory and only replace the old ones once the new
+    # manifest has been written, so a failed capture never damages earlier evidence and
+    # --force never leaves snapshots that the new manifest does not reference.
+    snapshot_dir = base / snapshot_dir_name(name)
+    staging = base / f"{snapshot_dir_name(name)}.tmp"
+    shutil.rmtree(staging, ignore_errors=True)
     try:
-        write_manifest(manifest_path, manifest)
-    except OSError as exc:
-        raise CaptureError(f"cannot write {manifest_path}: {exc}") from exc
-    except SciProofError as exc:  # a bug in SciProof itself; never write an invalid manifest
-        raise CaptureError(f"internal error: generated an invalid manifest: {exc}") from exc
+        output_records: list[dict[str, Any]] = []
+        for relative in exact_paths + numeric_paths:
+            numeric = relative in numeric_paths
+            target = base / relative
+            record: dict[str, Any] = {"path": relative}
+            if target.is_dir() and not numeric:
+                record.update(present=True, **_tree(target, f"output {relative!r}"))
+                if before[relative] == record["sha256"]:
+                    warnings.append(
+                        f"output {relative!r} existed before the run and was not changed by it"
+                    )
+            elif target.is_dir():
+                raise CaptureError(
+                    f"numeric output {relative!r} is a directory; --output-numeric needs a file"
+                )
+            elif target.is_file():
+                digest, size = sha256_file(target)
+                record.update(present=True, sha256=digest, size=size)
+                if before[relative] == digest:
+                    warnings.append(
+                        f"output {relative!r} existed before the run and was not changed by it"
+                    )
+            elif result.exit_code == 0:
+                raise CaptureError(
+                    f"the command succeeded but the declared output {relative!r} does not exist. "
+                    "No evidence was written."
+                )
+            else:
+                record.update(present=False, sha256=None, size=0)
+                if numeric:
+                    raise CaptureError(
+                        f"the command failed and the numeric output {relative!r} does not exist"
+                    )
+
+            if numeric:
+                try:
+                    load_numeric(target)
+                except NumericFormatError as exc:
+                    raise CaptureError(str(exc)) from exc
+                staging.mkdir(exist_ok=True)
+                snapshot_name = f"{len(output_records)}-{target.name}"
+                shutil.copyfile(target, staging / snapshot_name)
+                snapshot_digest, _ = sha256_file(staging / snapshot_name)
+                record["compare"] = {
+                    "mode": "numeric",
+                    "rtol": rtol,
+                    "atol": atol,
+                    "snapshot": {
+                        "path": f"{snapshot_dir_name(name)}/{snapshot_name}",
+                        "sha256": snapshot_digest,
+                    },
+                }
+            else:
+                record["compare"] = {"mode": "exact"}
+            output_records.append(record)
+
+        uses_directories = any(
+            item.get("kind") == "directory" for item in [*input_records, *output_records]
+        )
+        manifest: dict[str, Any] = {
+            "schema": SCHEMA,
+            "schema_version": SCHEMA_VERSION_DIRECTORIES if uses_directories else SCHEMA_VERSION,
+            "name": name,
+            "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
+            "tool": {"name": "sciproof", "version": __version__},
+            "command": {"argv": list(argv), "cwd": "."},
+            "environment": {
+                "source": interpreter_source,
+                "python": {
+                    "version": interpreter["version"],
+                    "implementation": interpreter["implementation"],
+                    "byteorder": interpreter.get("byteorder", ""),
+                },
+                "platform": platform_info(),
+                "env_vars": selected_env_vars(),
+            },
+            "dependencies": [
+                {"name": pkg_name, "version": pkg_version}
+                for pkg_name, pkg_version in interpreter["packages"]
+            ],
+            "git": git,
+            "inputs": input_records,
+            "execution": {
+                "exit_code": result.exit_code,
+                "duration_seconds": round(result.duration_seconds, 3),
+                "stdout": summarize_stream(result.stdout, max_log_bytes),
+                "stderr": summarize_stream(result.stderr, max_log_bytes),
+            },
+            "outputs": output_records,
+        }
+        try:
+            write_manifest(manifest_path, manifest)
+        except OSError as exc:
+            raise CaptureError(f"cannot write {manifest_path}: {exc}") from exc
+        except SciProofError as exc:  # a bug in SciProof itself; never write an invalid manifest
+            raise CaptureError(f"internal error: generated an invalid manifest: {exc}") from exc
+        shutil.rmtree(snapshot_dir, ignore_errors=True)
+        if staging.exists():
+            os.replace(staging, snapshot_dir)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
     return CaptureResult(manifest_path=manifest_path, manifest=manifest, warnings=warnings)

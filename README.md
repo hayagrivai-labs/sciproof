@@ -24,7 +24,7 @@ can later verify it with an explicit verdict: `PASS`, `FAIL` or `INCONCLUSIVE`.
 | --- | --- | --- |
 | Integrity | Are the files what was recorded? | SHA-256 checks |
 | Execution reproducibility | Does the command still produce the recorded results? | opt-in rerun; environment *differences are reported*, not fixed |
-| Numerical equivalence | Equal within a declared tolerance? | `--output-numeric` with `rtol`/`atol` for `.json`/`.csv` |
+| Numerical equivalence | Equal within a declared tolerance? | `--output-numeric` with `rtol`/`atol` for `.json`, `.csv` and (with NumPy) `.npy` |
 | **Scientific validity** | **Is the result correct?** | **Not addressed. A reproducible result can still be wrong.** |
 
 Bitwise reproducibility across different hardware or platforms is **not** promised. Details in
@@ -148,12 +148,14 @@ Manifest format: [docs/MANIFEST.md](docs/MANIFEST.md).
 * A manifest contains a command and must be treated as untrusted. `inspect` and plain `verify`
   never execute it; `--rerun` runs it **with your permissions, unsandboxed**. Only rerun
   manifests you trust, ideally in a disposable VM or container. See [SECURITY.md](SECURITY.md).
-* Manifests are **not signed**: hashes detect changes, they do not stop someone who can rewrite
+* Manifests are **not signed** (a tested recipe using `ssh-keygen -Y` is in
+  [docs/DESIGN_SIGNING.md](docs/DESIGN_SIGNING.md)): hashes detect changes, they do not stop someone who can rewrite
   both manifest and files from fabricating consistent evidence.
 * Only declared files are tracked. Undeclared inputs, network, time and system libraries are
   invisible. SciProof reports environment differences but does not recreate environments.
 * stdout/stderr and the command line are stored in the manifest; review them for secrets.
-* Numeric comparison supports `.json` and `.csv` only (plain stdlib parsing).
+* Numeric comparison supports `.json` and `.csv` (standard library only) and `.npy` arrays
+  (`pip install 'sciproof[numpy]'`; numeric, boolean and complex dtypes, never unpickled).
 * The environment is probed from the command's interpreter only if the command is a Python
   interpreter; otherwise the interpreter running SciProof is described (and the manifest says so).
 * Linux, Windows and macOS are tested in CI (Python 3.11-3.13).
@@ -168,7 +170,7 @@ Manifest format: [docs/MANIFEST.md](docs/MANIFEST.md).
 | [ReproZip](https://docs.reprozip.org/en/1.x/) | Packs a Linux experiment with its files and dependencies so it can be rerun elsewhere. SciProof does not package anything. |
 | [Sumatra](https://sumatra.readthedocs.io/en/latest/introduction.html) | Electronic-lab-notebook style run records. |
 | [MLflow Tracking](https://mlflow.org/docs/latest/ml/tracking/) | Experiment tracking for ML with parameters and metrics, optional UI. |
-| [RO-Crate](https://www.researchobject.org/ro-crate/specification/1.1/introduction.html) | A standard to *describe* research outputs; does not verify them. |
+| [RO-Crate](https://www.researchobject.org/ro-crate/specification/1.1/introduction.html) | A standard to *describe* research outputs; does not verify them. Mapping study: [docs/DESIGN_RO_CRATE.md](docs/DESIGN_RO_CRATE.md). |
 
 Full analysis, with what could not be confirmed: [docs/COMPETITIVE_ANALYSIS.md](docs/COMPETITIVE_ANALYSIS.md).
 
@@ -177,8 +179,8 @@ Full analysis, with what could not be confirmed: [docs/COMPETITIVE_ANALYSIS.md](
 Nothing below is promised. Each item is only worth doing if real users ask for it:
 
 1. Try it on real experiments of a few researchers; record what is awkward or missing.
-2. Based on that: more numeric formats (for example `.npy`), directory outputs, or a manifest
-   export to RO-Crate for interoperability.
+2. Based on that: more numeric formats (for example `.npz`), directory outputs, or a manifest export to RO-Crate
+   for interoperability.
 3. Signing or timestamping of manifests, if integrity against a hostile party matters to users.
 
 ## Contributing

@@ -97,3 +97,27 @@ def test_non_utf8_file_raises(tmp_path):
     (tmp_path / "a.csv").write_bytes(b"\xff\xfe1,2")
     with pytest.raises(NumericFormatError):
         load_numeric(tmp_path / "a.csv")
+
+
+def test_large_integers_are_compared_exactly(tmp_path):
+    a = _json(tmp_path / "a.json", {"x": 2**53 + 1})
+    b = _json(tmp_path / "b.json", {"x": 2**53})
+    assert compare(a, b, rtol=0.0, atol=0.0) != []  # float() would make these equal
+    assert compare(a, a, rtol=0.0, atol=0.0) == []
+
+
+def test_csv_quoted_line_breaks_are_kept(tmp_path):
+    (tmp_path / "a.csv").write_bytes(b'c\n"x\ny"\n')
+    (tmp_path / "b.csv").write_bytes(b'c\n"x y"\n')
+    (tmp_path / "crlf.csv").write_bytes(b'c\r\n"x\r\ny"\r\n')
+    a, b, crlf = (load_numeric(tmp_path / n) for n in ("a.csv", "b.csv", "crlf.csv"))
+    assert dict(a)["r1c0"] == "x\ny"
+    assert compare(a, b, 0.0, 0.0) != []
+    assert len(crlf) == len(a)  # a CRLF file has the same structure
+
+
+def test_csv_cells_with_digit_separators_are_text(tmp_path):
+    (tmp_path / "a.csv").write_text("v\n1_000\n")
+    (tmp_path / "b.csv").write_text("v\n1000\n")
+    a, b = load_numeric(tmp_path / "a.csv"), load_numeric(tmp_path / "b.csv")
+    assert compare(a, b, 1.0, 1.0) != []
