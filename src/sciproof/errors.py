@@ -17,5 +17,9 @@ class CaptureError(SciProofError):
     """The experiment could not be captured."""
 
 
+class UsageError(SciProofError):
+    """An option has an invalid value."""
+
+
 class ConfirmationRequired(SciProofError):
     """Re-execution was requested but not confirmed by the user."""

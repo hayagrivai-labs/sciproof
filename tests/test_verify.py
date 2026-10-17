@@ -7,7 +7,7 @@ import sys
 import pytest
 
 from sciproof import verify as verify_module
-from sciproof.errors import ConfirmationRequired
+from sciproof.errors import ConfirmationRequired, UsageError
 from sciproof.verify import Status, verify
 
 
@@ -306,3 +306,12 @@ def test_interrupted_rerun_restores_the_originals(project, monkeypatch):
     report = verify(project.manifest, rerun=True, assume_yes=True)
     assert report.status is Status.INCONCLUSIVE
     assert (project.root / "out" / "exact.txt").read_bytes() == original
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+def test_invalid_rerun_timeout_is_a_clean_error_and_runs_nothing(project, timeout):
+    project.capture()
+    runs = project.runs()
+    with pytest.raises(UsageError, match="timeout"):
+        verify(project.manifest, rerun=True, assume_yes=True, timeout=timeout)
+    assert project.runs() == runs

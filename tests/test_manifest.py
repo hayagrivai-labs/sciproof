@@ -52,6 +52,9 @@ def _delete(path):
 
 BAD_MUTATIONS = {
     "wrong schema": _set(["schema"], "something.else"),
+    "negative input size": _set(["inputs", 0, "size"], -5),
+    "negative output size": _set(["outputs", 0, "size"], -1),
+    "negative log size": _set(["execution", "stdout", "size"], -1),
     "bad version string": _set(["schema_version"], "one"),
     "missing name": _delete(["name"]),
     "invalid name": _set(["name"], "../evil"),

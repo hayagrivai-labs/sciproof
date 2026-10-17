@@ -15,6 +15,7 @@ much weaker statement than reproducibility of a computation (see docs/CONCEPTS.m
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import tempfile
 from collections.abc import Callable
@@ -25,7 +26,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from sciproof.environment import interpreter_info, platform_info, selected_env_vars
-from sciproof.errors import ConfirmationRequired, UnsafePathError
+from sciproof.errors import ConfirmationRequired, UnsafePathError, UsageError
 from sciproof.gitinfo import git_info
 from sciproof.hashing import sha256_bytes, sha256_file
 from sciproof.manifest import load_manifest
@@ -456,6 +457,8 @@ def verify(
     ``confirm`` callback); without either, ``ConfirmationRequired`` is raised and nothing runs.
     Raises ``ManifestError`` for an unreadable or invalid manifest.
     """
+    if timeout is not None and not (math.isfinite(timeout) and timeout > 0):
+        raise UsageError("timeout must be a positive number of seconds")
     manifest_path = manifest_path.resolve()
     manifest = load_manifest(manifest_path)
     base = manifest_path.parent
