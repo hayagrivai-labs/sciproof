@@ -19,6 +19,7 @@ from sciproof.manifest import (
     NAME_RE,
     SCHEMA,
     SCHEMA_VERSION,
+    SCHEMA_VERSION_DIRECTORIES,
     snapshot_dir_name,
     write_manifest,
 )
@@ -31,6 +32,7 @@ from sciproof.runner import (
     run_command,
     summarize_stream,
 )
+from sciproof.tree import TreeError, tree_record
 
 DEFAULT_MAX_LOG_BYTES = 64 * 1024
 DEFAULT_RTOL = 1e-9
@@ -53,15 +55,32 @@ def _hash_inputs(base: Path, inputs: list[str]) -> list[dict[str, Any]]:
     for relative in inputs:
         path = base / relative
         if path.is_dir():
-            raise CaptureError(
-                f"input {relative!r} is a directory; only files can be declared "
-                "(directory support is tracked in issue #5)"
-            )
+            records.append({"path": relative, **_tree(path, f"input {relative!r}")})
+            continue
         if not path.is_file():
             raise CaptureError(f"input file not found: {relative}")
         digest, size = sha256_file(path)
         records.append({"path": relative, "sha256": digest, "size": size})
     return records
+
+
+def _tree(path: Path, what: str) -> dict[str, Any]:
+    try:
+        return tree_record(path)
+    except TreeError as exc:
+        raise CaptureError(f"{what}: {exc}") from exc
+
+
+def _digest_now(path: Path) -> str | None:
+    """Digest of a file or directory tree, ``None`` if it does not exist or cannot be listed."""
+    if path.is_file():
+        return sha256_file(path)[0]
+    if path.is_dir():
+        try:
+            return tree_record(path)["sha256"]
+        except TreeError:
+            return None
+    return None
 
 
 def _unique(items: list[str], what: str) -> None:
@@ -129,12 +148,12 @@ def capture(
     before = {}
     for relative in exact_paths + numeric_paths:
         target = base / relative
-        if target.is_dir():
+        if target.is_dir() and relative in numeric_paths:
             raise CaptureError(
-                f"output {relative!r} is a directory; only files can be declared "
-                "(directory support is tracked in issue #5)"
+                f"numeric output {relative!r} is a directory; --output-numeric needs a .json or "
+                ".csv file (use --output for a whole directory)"
             )
-        before[relative] = sha256_file(target)[0] if target.is_file() else None
+        before[relative] = _digest_now(target)
 
     git = git_info(base)
     if git and git["dirty"]:
@@ -155,10 +174,7 @@ def capture(
 
     # The command must treat declared inputs as read-only, otherwise the evidence is meaningless.
     for record in input_records:
-        digest, _ = (
-            sha256_file(base / record["path"]) if (base / record["path"]).is_file() else (None, 0)
-        )
-        if digest != record["sha256"]:
+        if _digest_now(base / record["path"]) != record["sha256"]:
             raise CaptureError(
                 f"the command modified or removed the declared input {record['path']!r}; "
                 "inputs must be read-only. No evidence was written."
@@ -170,7 +186,17 @@ def capture(
         numeric = relative in numeric_paths
         target = base / relative
         record: dict[str, Any] = {"path": relative}
-        if target.is_file():
+        if target.is_dir() and not numeric:
+            record.update(present=True, **_tree(target, f"output {relative!r}"))
+            if before[relative] == record["sha256"]:
+                warnings.append(
+                    f"output {relative!r} existed before the run and was not changed by it"
+                )
+        elif target.is_dir():
+            raise CaptureError(
+                f"numeric output {relative!r} is a directory; --output-numeric needs a file"
+            )
+        elif target.is_file():
             digest, size = sha256_file(target)
             record.update(present=True, sha256=digest, size=size)
             if before[relative] == digest:
@@ -211,9 +237,12 @@ def capture(
             record["compare"] = {"mode": "exact"}
         output_records.append(record)
 
+    uses_directories = any(
+        item.get("kind") == "directory" for item in [*input_records, *output_records]
+    )
     manifest: dict[str, Any] = {
         "schema": SCHEMA,
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": SCHEMA_VERSION_DIRECTORIES if uses_directories else SCHEMA_VERSION,
         "name": name,
         "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "tool": {"name": "sciproof", "version": __version__},

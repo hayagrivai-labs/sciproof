@@ -14,11 +14,14 @@ import re
 from pathlib import Path
 from typing import Any
 
-from sciproof.errors import ManifestError, UnsafePathError
+from sciproof.errors import ManifestError, SciProofError, UnsafePathError
 from sciproof.paths import validate_relative_path
+from sciproof.tree import tree_digest, validate_tree_files
 
 SCHEMA = "sciproof.manifest"
 SCHEMA_VERSION = "1.0"
+# Manifests that describe directories use 1.1 (older readers treat them as unsupported).
+SCHEMA_VERSION_DIRECTORIES = "1.1"
 SUPPORTED_MAJOR = 1
 MANIFEST_SUFFIX = ".sciproof.json"
 MAX_MANIFEST_BYTES = 16 * 1024 * 1024
@@ -76,6 +79,27 @@ def _finite_nonneg(value: Any, where: str) -> float:
     if not math.isfinite(value) or value < 0:
         raise _fail(where, "expected a finite number >= 0")
     return float(value)
+
+
+def _check_kind(item: dict[str, Any], where: str) -> None:
+    """Validate the optional ``kind`` of an input or output (``file`` is the default)."""
+    kind = item.get("kind", "file")
+    if kind not in ("file", "directory"):
+        raise _fail(f"{where}.kind", f"expected 'file' or 'directory', got {kind!r}")
+    if kind == "file":
+        if "files" in item:
+            raise _fail(f"{where}.files", "only allowed for directories")
+        return
+    try:
+        files = validate_tree_files(item.get("files"), f"{where}.files")
+    except SciProofError as exc:
+        raise _fail(f"{where}.files", str(exc)) from exc
+    except ValueError as exc:
+        raise _fail(where, str(exc)) from exc
+    if item["sha256"] != tree_digest(files):
+        raise _fail(f"{where}.sha256", "does not match the listed files")
+    if item["size"] != sum(entry["size"] for entry in files):
+        raise _fail(f"{where}.size", "does not match the listed files")
 
 
 def _validate_stream(stream: Any, where: str) -> None:
@@ -144,6 +168,7 @@ def validate_manifest(data: Any) -> dict[str, Any]:
         seen.add(path)
         _sha(item.get("sha256"), f"{where}.sha256")
         _get(item, "size", int, where)
+        _check_kind(item, where)
 
     execution = _as_dict(_get(manifest, "execution", dict, "manifest"), "execution")
     _get(execution, "exit_code", int, "execution")
@@ -163,6 +188,7 @@ def validate_manifest(data: Any) -> dict[str, Any]:
         if present:
             _sha(item.get("sha256"), f"{where}.sha256")
             _get(item, "size", int, where)
+            _check_kind(item, where)
         elif item.get("sha256") is not None:
             raise _fail(f"{where}.sha256", "must be null when the output is not present")
         compare = _as_dict(_get(item, "compare", dict, where), f"{where}.compare")
@@ -175,6 +201,8 @@ def validate_manifest(data: Any) -> dict[str, Any]:
             _sha(snapshot.get("sha256"), f"{where}.compare.snapshot.sha256")
             if not present:
                 raise _fail(where, "a numeric output must be present")
+            if item.get("kind", "file") != "file":
+                raise _fail(f"{where}.kind", "a numeric output must be a file")
         elif mode != "exact":
             raise _fail(f"{where}.compare.mode", f"expected 'exact' or 'numeric', got {mode!r}")
 

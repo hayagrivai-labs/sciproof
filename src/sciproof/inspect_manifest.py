@@ -57,7 +57,7 @@ def describe(manifest: dict[str, Any]) -> str:
 
     lines += ["", f"Inputs ({len(manifest['inputs'])}):"]
     lines += [
-        f"  {safe_text(i['path'])}  sha256:{i['sha256'][:16]}...  {i['size']} bytes"
+        f"  {safe_text(i['path'])}  sha256:{i['sha256'][:16]}...  {_size_text(i)}"
         for i in manifest["inputs"]
     ] or ["  (none)"]
 
@@ -79,7 +79,7 @@ def describe(manifest: dict[str, Any]) -> str:
         if item["present"]:
             lines.append(
                 f"  {safe_text(item['path'])}  sha256:{item['sha256'][:16]}...  "
-                f"{item['size']} bytes  compare: {how}"
+                f"{_size_text(item)}  compare: {how}"
             )
         else:
             lines.append(f"  {safe_text(item['path'])}  (absent when captured)  compare: {how}")
@@ -92,6 +92,12 @@ def describe(manifest: dict[str, Any]) -> str:
         "      Add --rerun only if you trust the command shown above.",
     ]
     return "\n".join(lines)
+
+
+def _size_text(item: dict[str, Any]) -> str:
+    if item.get("kind") == "directory":
+        return f"directory, {len(item['files'])} files, {item['size']} bytes"
+    return f"{item['size']} bytes"
 
 
 def inspect_file(path: Path) -> str:

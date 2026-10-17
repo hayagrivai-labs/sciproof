@@ -38,6 +38,7 @@ from sciproof.runner import (
     run_command,
 )
 from sciproof.textutil import safe_text
+from sciproof.tree import TreeError, diff_tree, list_tree, tree_digest
 
 DEFAULT_RERUN_TIMEOUT_SECONDS = 3600.0
 MAX_LISTED_DIFFERENCES = 10
@@ -91,6 +92,33 @@ def _resolve(base: Path, relative: str, report: Report, subject: str) -> Path | 
         return None
 
 
+def _is_directory(item: dict[str, Any]) -> bool:
+    return item.get("kind") == "directory"
+
+
+def _exists(path: Path, item: dict[str, Any]) -> bool:
+    return path.is_dir() if _is_directory(item) else path.is_file()
+
+
+def _matches_record(path: Path, item: dict[str, Any]) -> tuple[bool, str]:
+    """Compare an existing file or directory with its record: ``(matches, difference)``."""
+    if not _is_directory(item):
+        return sha256_file(path)[0] == item["sha256"], "SHA-256 differs"
+    try:
+        current = list_tree(path)
+    except TreeError as exc:
+        return False, f"cannot be listed: {exc}"
+    if tree_digest(current) == item["sha256"]:
+        return True, ""
+    return False, "; ".join(diff_tree(item["files"], current))
+
+
+def _describe_match(item: dict[str, Any]) -> str:
+    if _is_directory(item):
+        return f"unchanged (all {len(item['files'])} files match)"
+    return "unchanged (SHA-256 matches)"
+
+
 def _check_inputs(base: Path, manifest: dict[str, Any], report: Report) -> bool:
     """Return True if every declared input is present and unmodified."""
     intact = True
@@ -99,20 +127,20 @@ def _check_inputs(base: Path, manifest: dict[str, Any], report: Report) -> bool:
         path = _resolve(base, item["path"], report, subject)
         if path is None:
             intact = False
-        elif not path.is_file():
+        elif not _exists(path, item):
             intact = False
             report.add(
                 Status.INCONCLUSIVE,
                 subject,
-                "not available, so nothing can be said about it (restore the file to verify)",
+                "not available, so nothing can be said about it (restore it to verify)",
             )
         else:
-            digest, _ = sha256_file(path)
-            if digest == item["sha256"]:
-                report.add(Status.PASS, subject, "unchanged (SHA-256 matches)")
+            matches, difference = _matches_record(path, item)
+            if matches:
+                report.add(Status.PASS, subject, _describe_match(item))
             else:
                 intact = False
-                report.add(Status.FAIL, subject, "modified since capture (SHA-256 differs)")
+                report.add(Status.FAIL, subject, f"modified since capture ({difference})")
     return intact
 
 
@@ -146,7 +174,7 @@ def _check_outputs(base: Path, manifest: dict[str, Any], report: Report) -> dict
             snapshots[item["path"]] = _check_snapshot(base, item, report, subject)
         if path is None:
             continue
-        exists = path.is_file()
+        exists = _exists(path, item)
         if not item["present"]:
             if exists:
                 report.add(Status.FAIL, subject, "was recorded as absent but now exists")
@@ -154,10 +182,12 @@ def _check_outputs(base: Path, manifest: dict[str, Any], report: Report) -> dict
                 report.add(Status.PASS, subject, "still absent, as recorded")
         elif not exists:
             report.add(Status.FAIL, subject, "missing (it existed when the evidence was captured)")
-        elif sha256_file(path)[0] == item["sha256"]:
-            report.add(Status.PASS, subject, "unchanged (SHA-256 matches)")
         else:
-            report.add(Status.FAIL, subject, "modified since capture (SHA-256 differs)")
+            matches, difference = _matches_record(path, item)
+            if matches:
+                report.add(Status.PASS, subject, _describe_match(item))
+            else:
+                report.add(Status.FAIL, subject, f"modified since capture ({difference})")
     return snapshots
 
 
@@ -257,7 +287,7 @@ def _compare_rerun(
         path = _resolve(base, item["path"], report, subject)
         if path is None:
             continue
-        exists = path.is_file()
+        exists = _exists(path, item)
         if not item["present"]:
             if exists:
                 report.add(
@@ -270,9 +300,13 @@ def _compare_rerun(
             report.add(Status.FAIL, subject, "the rerun did not produce this file")
             continue
         if item["compare"]["mode"] == "exact":
-            digest, _ = sha256_file(path)
-            if digest == item["sha256"]:
+            matches, difference = _matches_record(path, item)
+            if matches:
                 report.add(Status.PASS, subject, "identical to the recorded output (exact SHA-256)")
+            elif _is_directory(item):
+                report.add(
+                    Status.FAIL, subject, f"differs from the recorded directory: {difference}"
+                )
             else:
                 report.add(
                     Status.FAIL,
@@ -313,6 +347,14 @@ def _compare_rerun(
         )
 
 
+def _copy_path(source: Path, destination: Path) -> None:
+    """Copy a file or a whole directory tree (symlinks are copied as links, not followed)."""
+    if source.is_dir():
+        shutil.copytree(source, destination, symlinks=True)
+    else:
+        shutil.copy2(source, destination)
+
+
 def _rerun_dir_name(stamp: str, counter: int) -> str:
     return f".sciproof-rerun-{stamp}" + (f"-{counter}" if counter else "")
 
@@ -338,9 +380,9 @@ def _rerun(
     try:
         for relative in output_paths:
             target = resolve_inside(base, relative)
-            if target.is_file():
+            if target.is_file() or target.is_dir():
                 (backup_root / relative).parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(target, backup_root / relative)
+                _copy_path(target, backup_root / relative)
                 had_original.add(relative)
 
         try:
@@ -362,7 +404,7 @@ def _rerun(
         # A rerun must not damage the evidence it is checked against.
         for item in manifest["inputs"]:
             path = resolve_inside(base, item["path"])
-            if not path.is_file() or sha256_file(path)[0] != item["sha256"]:
+            if not _exists(path, item) or not _matches_record(path, item)[0]:
                 report.add(
                     Status.FAIL,
                     f"input {item['path']}",
@@ -376,7 +418,7 @@ def _rerun(
             counter += 1  # two reruns within one second must not share a directory
         for relative in output_paths:
             target = resolve_inside(base, relative)
-            if target.is_file():
+            if target.is_file() or target.is_dir():
                 if moved_to is None:
                     moved_to = base / _rerun_dir_name(stamp, counter)
                 destination = moved_to / relative
@@ -384,7 +426,7 @@ def _rerun(
                 shutil.move(str(target), destination)
             if relative in had_original:
                 target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(backup_root / relative, target)
+                _copy_path(backup_root / relative, target)
         for relative in output_paths:
             for parent in PurePosixPath(relative).parents:
                 if str(parent) == "." or parent in preexisting_dirs:

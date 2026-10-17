@@ -128,6 +128,8 @@ sciproof verify  MANIFEST [--rerun] [--yes] [--strict-env] [--timeout S] [--json
 sciproof inspect MANIFEST
 ```
 
+* `--input` and `--output` accept files and directories. A directory is recorded as a sorted
+  list of its files (see [docs/MANIFEST.md](docs/MANIFEST.md)); symlinks inside it are refused.
 * Paths must be inside the current directory; the manifest is written there as
   `NAME.sciproof.json`. Numeric outputs are also copied to `NAME.sciproof.d/` (needed to compare
   with a tolerance; keep it next to the manifest).

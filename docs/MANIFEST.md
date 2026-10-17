@@ -4,7 +4,7 @@ A manifest is a UTF-8 JSON file named `<name>.sciproof.json`, written next to th
 describes (its directory is the *base directory*). All paths inside it are relative to that
 directory, use `/` as separator and may not contain `..`, drive letters or absolute roots.
 
-Unknown *minor* versions (`1.x`) are read; an unknown *major* version is rejected.
+Manifests that contain a directory use version `1.1`; all others stay `1.0`. Unknown *minor* versions (`1.x`) are read; an unknown *major* version is rejected.
 Manifests are validated strictly when read (see `src/sciproof/manifest.py`), because they are
 untrusted input.
 
@@ -40,6 +40,25 @@ untrusted input.
   ]
 }
 ```
+
+## Directories (schema 1.1)
+
+An input or an output may be a directory. Its entry has `"kind": "directory"` and a sorted
+`files` list; `sha256` is the *tree digest* and `size` the total number of bytes:
+
+```jsonc
+{"path": "dataset", "kind": "directory", "sha256": "<tree digest>", "size": 6,
+ "files": [{"path": "nested/two.csv", "sha256": "...", "size": 3},
+           {"path": "one.csv", "sha256": "...", "size": 3}]}
+```
+
+* Tree digest: SHA-256 over one line per file, sorted by path, of the form
+  `path NUL sha256 NUL size LF` (UTF-8). It is validated against `files` when a manifest is read.
+* Only regular files are recorded. Empty subdirectories, permissions and timestamps are not.
+  Symbolic links inside a directory are refused, and so are directories with more than 20,000 files.
+* `verify` lists added, removed and modified files. Directory outputs are compared exactly;
+  `--output-numeric` needs a single `.json` or `.csv` file.
+* Whether an output is a file or a directory is decided after the command ran.
 
 ## Notes
 
