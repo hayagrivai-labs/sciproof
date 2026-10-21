@@ -22,7 +22,7 @@ from sciproof.export import (
 )
 from sciproof.inspect_manifest import describe
 from sciproof.ledger import list_manifests
-from sciproof.manifest import load_manifest
+from sciproof.manifest import load_manifest, validate_manifest
 from sciproof.verify import Status, verify
 
 # ---------------------------------------------------------------- notes
@@ -189,6 +189,24 @@ def test_hardware_is_only_recorded_on_request(project):
         "gpus",
     }
     load_manifest(project.manifest)
+
+
+def test_hardware_must_carry_cpu_count(project):
+    """Readers index cpu_count directly, so the key must be present
+    (issue #89): a manifest without it must be rejected, not crash inspect."""
+    project.capture(record_hardware=True)
+    manifest = json.loads(project.manifest.read_text())
+    del manifest["environment"]["hardware"]["cpu_count"]
+    with pytest.raises(ManifestError, match="cpu_count"):
+        validate_manifest(manifest)
+
+
+def test_cpu_count_may_be_null_when_the_probe_returned_none(project):
+    """os.cpu_count() can return None, so a null value stays valid."""
+    project.capture(record_hardware=True)
+    manifest = json.loads(project.manifest.read_text())
+    manifest["environment"]["hardware"]["cpu_count"] = None
+    assert validate_manifest(manifest) is manifest
 
 
 def test_inspect_shows_the_hardware(project):

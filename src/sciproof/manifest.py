@@ -149,7 +149,12 @@ def _check_hardware(hardware: Any, minor: int) -> None:
     if minor < 1:
         raise _fail(where, "hardware needs schema_version 1.1 or later")
     hardware = _as_dict(hardware, where)
-    cpus = hardware.get("cpu_count")
+    # The key must be present, like the other hardware fields: readers
+    # (inspect, diff, verify) index it directly, and hardware_info() always
+    # writes it. The value may still be null (os.cpu_count() can return None).
+    if "cpu_count" not in hardware:
+        raise _fail(f"{where}.cpu_count", "expected a positive integer or null")
+    cpus = hardware["cpu_count"]
     if cpus is not None and (isinstance(cpus, bool) or not isinstance(cpus, int) or cpus < 1):
         raise _fail(f"{where}.cpu_count", "expected a positive integer or null")
     processor = hardware.get("processor")
