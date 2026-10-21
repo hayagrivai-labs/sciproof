@@ -73,6 +73,7 @@ export default defineConfig({
             { label: 'Product roadmap', slug: 'docs/product-roadmap' },
             { label: 'FAQ', slug: 'docs/faq' },
             { label: 'Contributing', slug: 'docs/contributing' },
+            { label: 'Architecture', slug: 'docs/architecture' },
             { label: 'Changelog', slug: 'docs/changelog' },
           ],
         },

@@ -79,6 +79,7 @@ const PAGES = [
     description: 'What might come next, decided by feedback.',
   },
   { slug: 'faq', title: 'FAQ', source: 'docs/FAQ.md', description: 'Frequently asked questions.' },
+  { slug: 'architecture', title: 'Architecture for contributors', source: 'docs/ARCHITECTURE.md', description: 'A map of the code for new contributors.' },
   { slug: 'contributing', title: 'Contributing', source: 'CONTRIBUTING.md', description: 'How to help.' },
 ];
 
