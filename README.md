@@ -1,13 +1,15 @@
 # SciProof
 
 [![CI](https://github.com/hayagrivai-labs/sciproof/actions/workflows/ci.yml/badge.svg)](https://github.com/hayagrivai-labs/sciproof/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/sciproof.svg)](https://pypi.org/project/sciproof/)
+[![Good first issues](https://img.shields.io/github/issues/hayagrivai-labs/sciproof/good%20first%20issue?color=7057ff&label=good%20first%20issues)](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/hayagrivai-labs/sciproof/blob/main/LICENSE)
 
 Record a computational experiment once, then let anyone **check the evidence**: are the files
 unchanged, and does re-running the command give the recorded results, exactly or within a
 tolerance you declared?
 
-> **Status: alpha (0.1).** Small, local-first, offline, no runtime dependencies. The idea is
+> **Status: alpha (0.3).** Small, local-first, offline, no runtime dependencies. The idea is
 > unproven with real users; see [the competitive analysis](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/COMPETITIVE_ANALYSIS.md) for
 > how it overlaps with the most widely used tools (DVC, MLflow).
 
@@ -266,6 +268,11 @@ Nothing below is promised. Each item is only worth doing if real users ask for i
 3. Signing or timestamping of manifests, if integrity against a hostile party matters to users.
 
 ## Contributing
+
+New here? The open issues are written for newcomers: each one has the problem, the files to touch
+and the acceptance criteria. Start with the [good first issues](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22),
+or ask in [Discussions](https://github.com/hayagrivai-labs/sciproof/discussions). A map of the code is in
+[docs/ARCHITECTURE.md](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/ARCHITECTURE.md).
 
 See [CONTRIBUTING.md](https://github.com/hayagrivai-labs/sciproof/blob/main/CONTRIBUTING.md). Quick checks: `ruff check .`, `ruff format --check .`,
 `python -m pytest`, `python examples/demo.py`.

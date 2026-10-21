@@ -4,6 +4,31 @@ Thanks for helping. SciProof is small on purpose; the most valuable contribution
 are **real-world feedback** (does it fit how you run experiments?), bug reports with a minimal
 manifest, and tests.
 
+## Where to start
+
+Every task below is a real, open issue with the problem, the files to touch and the acceptance
+criteria written down. Pick one, comment that you take it, and ask questions in the issue.
+
+* **First contribution (a few hours):** [good first issue](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+* **Some knowledge of the code:** [difficulty: medium](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22difficulty%3A+medium%22)
+* **Design work (discuss the approach first):** [needs design](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22needs+design%22)
+* **A maintainer will help you through it:** [mentor available](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22mentor+available%22)
+* **Tests, docs and tutorials count as much as code:** [testing](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3Atesting),
+  [area: docs](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22area%3A+docs%22)
+
+Nothing fits? Found a bug, or you use SciProof in a way it does not support yet? Open an issue or a
+[discussion](https://github.com/hayagrivai-labs/sciproof/discussions). A well-described problem from real use is a contribution.
+
+How the code is organised is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+### What happens to your pull request
+
+A maintainer reads every pull request. We check that the change is small and focused, that it has
+a test (including the failure case), that the checks pass, and that messages and docs do not claim
+more than the code verifies. Review comments are about the change, not the person; it is normal for
+a first pull request to go through a round or two of changes. If a pull request stalls, say so in
+a comment and someone will pick it up.
+
 ## Development setup
 
 ```bash
