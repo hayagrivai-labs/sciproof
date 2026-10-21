@@ -39,6 +39,7 @@ from sciproof.hashing import sha256_bytes, sha256_file
 from sciproof.manifest import load_manifest
 from sciproof.numeric import NumericFormatError, compare_detailed, load_numeric
 from sciproof.paths import resolve_inside
+from sciproof.policy import apply_policy, load_policy
 from sciproof.runner import (
     CommandInterrupted,
     CommandNotRunnable,
@@ -106,6 +107,8 @@ class Report:
     signature: dict[str, Any] | None = None
     #: True once the manifest's claims have been looked at.
     claims_checked: bool = False
+    #: The policy that was applied (file name, SHA-256, version), or ``None``.
+    policy: dict[str, Any] | None = None
 
     def add(
         self,
@@ -809,7 +812,46 @@ def verify(
     clean_env: bool = False,
     pass_env: Sequence[str] = (),
     allowed_signers: Path | str | None = None,
+    policy: Path | str | None = None,
 ) -> Report:
+    """Verify ``manifest_path``.
+
+    Without ``rerun`` nothing is executed and only artifact integrity is checked. With ``rerun``
+    the recorded command is executed after confirmation (``assume_yes`` or the ``confirm``
+    callback); without either, ``ConfirmationRequired`` is raised and nothing runs. With
+    ``policy`` (a TOML file, see ``sciproof.policy``) every rule of the policy is added to the
+    report as a check; an invalid policy is an error before anything else happens. Raises
+    ``ManifestError`` for an unreadable or invalid manifest.
+    """
+    loaded = load_policy(policy) if policy is not None else None
+    report, manifest = _verify(
+        manifest_path,
+        rerun=rerun,
+        assume_yes=assume_yes,
+        strict_env=strict_env,
+        timeout=timeout,
+        confirm=confirm,
+        clean_env=clean_env,
+        pass_env=pass_env,
+        allowed_signers=allowed_signers,
+    )
+    if loaded is not None:
+        apply_policy(loaded, manifest, report)
+    return report
+
+
+def _verify(
+    manifest_path: Path,
+    *,
+    rerun: bool = False,
+    assume_yes: bool = False,
+    strict_env: bool = False,
+    timeout: float | None = DEFAULT_RERUN_TIMEOUT_SECONDS,
+    confirm: Callable[[str], bool] | None = None,
+    clean_env: bool = False,
+    pass_env: Sequence[str] = (),
+    allowed_signers: Path | str | None = None,
+) -> tuple[Report, dict[str, Any]]:
     """Verify ``manifest_path``.
 
     Without ``rerun`` nothing is executed and only artifact integrity is checked. With
@@ -863,7 +905,7 @@ def verify(
             "scope: artifact integrity only. The recorded command was NOT executed, so this "
             "does not show that the results can be reproduced."
         )
-        return report
+        return report, manifest
 
     if not inputs_intact:
         report.add(
@@ -872,7 +914,7 @@ def verify(
             "not attempted: declared inputs are missing, modified or unsafe, so a rerun would "
             "not be comparable with the recorded run",
         )
-        return report
+        return report, manifest
 
     declared = [item["path"] for item in manifest["inputs"] + manifest["outputs"]]
     try:
@@ -880,7 +922,7 @@ def verify(
             resolve_inside(base, relative)
     except UnsafePathError as exc:
         report.add(Status.INCONCLUSIVE, "rerun", f"not attempted: unsafe path ({exc})")
-        return report
+        return report, manifest
 
     rerun_env: dict[str, str] | None = None
     unset: list[str] = []
@@ -897,7 +939,7 @@ def verify(
             )
         if not confirm(prompt):
             report.add(Status.INCONCLUSIVE, "rerun", "declined by the user; nothing was executed")
-            return report
+            return report, manifest
 
     # Only now, after confirmation, is anything outside SciProof started (the interpreter probe).
     differences = _compare_environment(base, manifest)
@@ -908,7 +950,7 @@ def verify(
                 "environment",
                 "differs from the recorded one (--strict-env): " + "; ".join(differences),
             )
-            return report
+            return report, manifest
         report.warnings.append(
             "the environment differs from the recorded one: " + "; ".join(differences)
         )
@@ -934,7 +976,7 @@ def verify(
         "scope: integrity and one re-execution. Bitwise agreement across different hardware "
         "or platforms is not expected; agreement is not a proof of scientific correctness."
     )
-    return report
+    return report, manifest
 
 
 def report_to_dict(report: Report) -> dict[str, Any]:
@@ -954,6 +996,7 @@ def report_to_dict(report: Report) -> dict[str, Any]:
         "clean_env": report.clean_env,
         "env_passed": list(report.env_passed),
         "signature": report.signature,
+        "policy": report.policy,
         "checks": [
             {
                 "status": c.status.value,

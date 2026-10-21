@@ -1,0 +1,22 @@
+# A verification policy: what evidence you require, written down once and checked on every run.
+#   sciproof check-policy examples/sciproof.policy.toml          validate it
+#   sciproof verify baseline.sciproof.json --policy examples/sciproof.policy.toml
+# Every rule is optional. A rule whose evidence is missing is INCONCLUSIVE, never a pass.
+version = 1
+
+[manifest]
+max_age_days = 90        # the evidence was captured at most 90 days ago
+require_exit_code = 0    # the recorded run succeeded
+require_git = true       # a Git commit was recorded
+forbid_dirty_git = true  # ... with no uncommitted changes
+min_claims = 1           # at least one claim (--claim) is recorded
+# require_signature = true   # needs: verify --allowed-signers FILE
+
+[outputs]
+max_rtol = 1e-3          # no numeric output may declare a looser relative tolerance
+max_atol = 1e-6          # ... or absolute tolerance
+# require_numeric = ["metrics.json"]   # these outputs must be compared with a tolerance
+
+[rerun]
+require = true           # the verification must re-execute the command (--rerun)
+require_clean_env = true # ... with a minimal environment (--clean-env)
