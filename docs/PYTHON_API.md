@@ -35,7 +35,7 @@ nonzero still produces evidence; check `result.exit_code`. `result.warnings` hol
 prints as `warning:` lines (for example `rtol >= 1`). Raises `CaptureError` if the evidence cannot
 be written.
 
-### `verify_manifest(manifest_path, *, rerun=False, assume_yes=False, strict_env=False, timeout=3600.0, confirm=None, clean_env=False, pass_env=()) -> Report`
+### `verify_manifest(manifest_path, *, rerun=False, assume_yes=False, strict_env=False, timeout=3600.0, confirm=None, clean_env=False, pass_env=(), allowed_signers=None, policy=None) -> Report`
 
 Verifies a manifest. Without `rerun` nothing is executed and only integrity is checked.
 
@@ -48,6 +48,18 @@ meaningful with `rerun`.
 
 Raises `ManifestError` for an unreadable, invalid or unsafe manifest and `UsageError` for invalid
 arguments. A verdict of `FAIL` or `INCONCLUSIVE` is **not** an exception: it is `report.status`.
+
+`policy` is the path of a [policy file](POLICY.md); an invalid one raises `PolicyError`
+(a `SciProofError`) before anything is executed. `Report.to_markdown()` and
+`sciproof.junit.report_junit(report)` print the report as Markdown and JUnit XML.
+
+### `update_baseline(manifest_path, *, assume_yes=False, confirm=None, note=None, timeout=None) -> UpdateResult | None`
+
+Captures the experiment of a manifest again with its own declarations and returns an
+`UpdateResult` with `capture` (the new `CaptureResult`), `diff` (a `DiffReport` of old against
+new) and `warnings`; `None` if the confirmation was declined. It **executes the recorded
+command**: without `assume_yes` or a `confirm` callback it raises `ConfirmationRequired`
+([Updating a baseline](UPDATE.md)).
 
 ### `diff_manifests(old_path, new_path) -> DiffReport`
 

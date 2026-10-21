@@ -45,6 +45,8 @@ export default defineConfig({
             { label: 'Manifest format', slug: 'docs/manifest' },
             { label: 'Exit codes', slug: 'docs/exit-codes' },
             { label: 'Python API', slug: 'docs/python-api' },
+            { label: 'Policies', slug: 'docs/policy' },
+            { label: 'Updating a baseline', slug: 'docs/update' },
             { label: 'Claims', slug: 'docs/claims' },
             { label: 'Signing manifests', slug: 'docs/signing' },
             { label: 'Comparing two runs', slug: 'docs/diff' },

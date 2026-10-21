@@ -77,6 +77,9 @@ label in brackets says how sure the entry is.
 | Signature check on the recorded evidence | yes (OpenSSH, `--allowed-signers`) | ? | ? |
 | List and batch-verify all recorded runs in a directory | yes (`list --check`) | `dvc status` for a project (A) | UI (A) |
 | Export for other tools | in-toto Statement (unsigned) | ? | ? |
+| Rules about the evidence itself (age, signed, clean tree, tolerance ceilings), checked on every run | yes (`--policy`) | not described (D) | ? |
+| Refresh a baseline from its own recorded declarations, with a diff | yes (`update`) | `dvc repro` re-runs stages (D) | ? |
+| JUnit output; a GitHub Action | yes (`--format junit`, `action.yml`) | ? | ? |
 | Runtime dependencies | none | 42 (V) | ? |
 | Telemetry code or hosted component | none | telemetry dependency present (V); default [U] | optional server (D) |
 

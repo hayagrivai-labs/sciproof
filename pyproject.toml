@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sciproof"
-version = "0.2.0"
+version = "0.3.0"
 description = "Record computational experiments and create machine-verifiable evidence for checking their results."
 readme = "README.md"
 requires-python = ">=3.11"

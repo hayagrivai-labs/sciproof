@@ -7,7 +7,7 @@ The names in ``__all__`` are the supported Python API (docs/PYTHON_API.md). Ever
 the package is internal and may change in any release.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # The imports follow ``__version__`` on purpose: ``capture`` reads it while it is being imported.
 from sciproof.capture import CaptureResult  # noqa: E402
@@ -24,6 +24,7 @@ from sciproof.export import to_in_toto as export_in_toto  # noqa: E402
 from sciproof.export import to_openlineage as export_openlineage  # noqa: E402
 from sciproof.ledger import list_manifests  # noqa: E402
 from sciproof.manifest import load_manifest  # noqa: E402
+from sciproof.policy import PolicyError  # noqa: E402
 from sciproof.signing import SignatureError, sign_manifest  # noqa: E402
 from sciproof.update import UpdateResult, update_baseline  # noqa: E402
 from sciproof.verify import Check, Report, Status, report_to_dict  # noqa: E402
@@ -36,6 +37,7 @@ __all__ = [
     "ConfirmationRequired",
     "DiffReport",
     "ManifestError",
+    "PolicyError",
     "Report",
     "SciProofError",
     "SignatureError",

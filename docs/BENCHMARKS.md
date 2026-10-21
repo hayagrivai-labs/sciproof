@@ -72,6 +72,17 @@ describe the environment *before* the command ran (a command may install package
 not overlapped. Integrity verification costs about one interpreter start-up plus hashing the
 declared files.
 
+## Two attempts to make `capture` faster
+
+* **Running the probes concurrently** (interpreter packages, `git`, hashing) gave no gain: median
+  0.513 s on `main` against 0.529 s with threads, inside the noise (9 runs each). It was not kept.
+* **Listing packages from the `dist-info` directory names** instead of parsing every METADATA file
+  does help where it matters. Timed separately, listing 95 packages took 224 ms before and 4 ms
+  after; a whole `capture` on an interpreter with 96 packages took 0.632 s before and 0.498 s after
+  (median of 9). With a small environment (34 packages) the listing was already fast and there is
+  no measurable difference. The result is checked to give the same names and versions as the exact
+  way, and the exact way is still used for anything the directory name does not describe.
+
 ## What the benchmark found
 
 * Before the strict-JSON change a repeated key in a manifest was accepted and the last value won

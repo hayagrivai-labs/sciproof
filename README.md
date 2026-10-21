@@ -153,10 +153,13 @@ sciproof capture --name NAME [--input P]... [--output P]... [--output-numeric P]
                  [--force] [--allow-nonzero]
                  -- COMMAND [ARGS...]
 sciproof verify  MANIFEST [--rerun] [--yes] [--strict-env] [--clean-env]
-                 [--allowed-signers FILE]
+                 [--allowed-signers FILE] [--policy FILE]
+                 [--format text|json|markdown|junit] [--save-json FILE]
                  [--pass-env NAME]... [--timeout S] [--json]
 sciproof inspect MANIFEST
 sciproof diff    OLD NEW [--format text|json|markdown]
+sciproof update  MANIFEST [--yes] [--dry-run] [--note TEXT]
+sciproof check-policy FILE
 sciproof sign    MANIFEST --key KEY
 sciproof list    [DIR] [-r] [--check] [--format text|json|markdown]
 sciproof export  MANIFEST [--format in-toto|openlineage] [-o FILE]
@@ -205,6 +208,16 @@ sciproof suggest-inputs [--input P]... [--output P]... -- COMMAND [ARGS...]
 * `list` shows the manifests in a directory, newest first; `list --check` verifies all of them
   (integrity only) and exits with the worst result. `export` writes a manifest as an unsigned
   in-toto Statement or as OpenLineage run events ([details](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/LIST_AND_EXPORT.md)).
+* `--policy FILE` checks a TOML file of rules about the evidence itself (not older than N days,
+  clean Git tree, signed, at least one claim, no tolerance looser than a ceiling, rerun with
+  `--clean-env`, ...); each rule is a check of the report, and an unmet requirement is
+  `INCONCLUSIVE`, not a pass ([details](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/POLICY.md)).
+* `update` captures the recorded experiment again with the declarations already in the manifest
+  and shows what changed; it executes the recorded command, so it asks for confirmation
+  ([details](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/UPDATE.md)).
+* In CI: `--format junit` for test viewers, and a GitHub Action (`uses: hayagrivai-labs/sciproof@v0.3.0`)
+  that verifies a manifest and writes the report to the job summary
+  ([details](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/CI.md)).
 * `--clean-env` gives a rerun only a minimal environment (`PATH`, temp directories and the
   numerics-related variables SciProof records) instead of all of yours, so a manifest from
   someone else cannot read your credentials from it. `--pass-env NAME` adds a variable. It

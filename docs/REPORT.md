@@ -56,6 +56,7 @@ this machine.
   "clean_env": false,
   "env_passed": [],
   "signature": null,
+  "policy": null,
   "checks": [
     {
       "status": "FAIL",
@@ -87,12 +88,16 @@ are added within `1.x`; a field is only removed or changed in a new major versio
 | --- | --- | --- |
 | `input_integrity`, `output_integrity`, `snapshot_integrity`, `rerun_output_exact` | digest comparisons | `path`, `expected_sha256`, `actual_sha256` (`null` when the file is absent) |
 | `exit_code` | rerun | `recorded`, `rerun` |
+| `policy` | `--policy` | `rule` (for example `manifest.max_age_days`), and where it applies `limit`, `found`, `path` |
 | `claim` | a claim in the manifest | `phase` (`recorded` or `rerun`), `output`, `location`, `op`, `value`, `rtol`/`atol` for `~=`, `found` (`null` if the location is absent), `present` |
 | `manifest_signature` | `--allowed-signers` | `namespace`, `signature_file`, `principal`, `key_type`, `fingerprint` (the last three are `null` unless the signature is good) |
 | `rerun_output_numeric` | rerun of a `--output-numeric` file | `path`, `rtol`, `atol`, `rule`, `differences` (list of messages, empty when equivalent; `null` when the file could not be compared), `difference_details`, `error` |
 
 `signature` is `null` unless `--allowed-signers` was given; then it holds `status` (`good`, `bad`,
 `missing` or `unavailable`) and the same fields as the signature evidence ([Signing](SIGNING.md)).
+
+`policy` is `null` unless `--policy` was given; then it holds the `file` name, its `sha256` and the
+policy `version`, and every rule is a check whose subject starts with `policy` ([Policy](POLICY.md)).
 
 `clean_env` is true when the rerun used `--clean-env`; `env_passed` then lists the *names*
 (never the values) of the environment variables the command received.

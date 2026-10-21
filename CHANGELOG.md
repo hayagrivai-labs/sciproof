@@ -6,6 +6,35 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
+Nothing here changes how existing manifests are read or written.
+
+### Added
+
+* **Verification policies.** `verify --policy FILE` checks the rules of a strict TOML file against the
+  evidence (age of the evidence, exit code, Git state, signature, minimum number of claims, tolerance
+  ceilings, rerun and clean-environment requirements) as checks of the report; a rule whose evidence
+  is missing is `INCONCLUSIVE`. `sciproof check-policy FILE` validates a policy. An invalid policy is
+  rejected before any command is executed. See `docs/POLICY.md`.
+* **`sciproof update MANIFEST`**: capture the recorded experiment again with the declarations in the
+  manifest (command, inputs, outputs, tolerance, claims, note, hardware), after the same confirmation
+  as a rerun, replace the manifest and print what changed. `--dry-run` shows what would happen. The
+  declared outputs are removed first and restored if the capture fails. See `docs/UPDATE.md`.
+* **A GitHub Action** (`action.yml`): `uses: hayagrivai-labs/sciproof@v0.3.0` verifies a manifest,
+  writes the Markdown report to the job summary and exposes `result` and `report` outputs. The
+  repository tests it in its own CI. See `docs/CI.md`.
+* **JUnit XML** (`verify --format junit`, `list --check --format junit`) for CI test viewers, and
+  `verify --save-json FILE` to keep the JSON report next to any other format.
+* `sciproof.update_baseline()` and the `policy=` argument of `verify_manifest()` in the Python API.
+
+### Changed
+
+* Installed packages are listed from the `dist-info` directory names instead of parsing every
+  METADATA file (about 50 times faster; a capture on an interpreter with 96 packages takes 0.50 s
+  instead of 0.63 s). Package names are compared in their standard normal form, so `jaraco.context`
+  and `jaraco_context` are one package; manifests recorded by 0.2.x stay comparable.
+
 ## [0.2.0] - 2026-10-20
 
 Manifest schema 1.1 is written only when a manifest uses directories, claims, a note or a hardware

@@ -1,0 +1,111 @@
+name: "SciProof verify"
+description: >-
+  Verify recorded experiment evidence with SciProof (file hashes, optional re-execution with
+  numeric tolerances, claims, signatures, policy) and show the result in the job summary.
+author: "HayagrivAI Labs"
+branding:
+  icon: "check-circle"
+  color: "green"
+
+# Re-executing a manifest runs the command it contains with the job's permissions. `rerun` is off
+# by default; turn it on only for manifests that your own team committed to a protected branch,
+# never for manifests that come from a pull request. See docs/CI.md.
+
+inputs:
+  manifest:
+    description: "Path of the .sciproof.json manifest to verify."
+    required: true
+  rerun:
+    description: "Re-execute the recorded command and compare the results (runs the manifest's command)."
+    default: "false"
+  clean-env:
+    description: "With rerun: give the command a minimal environment instead of the job's (recommended)."
+    default: "true"
+  allowed-signers:
+    description: "Path of an OpenSSH allowed-signers file; also checks the manifest's .sig signature."
+    default: ""
+  policy:
+    description: "Path of a SciProof policy file (TOML) to check against the evidence."
+    default: ""
+  working-directory:
+    description: "Directory in which to run; the manifest and the other paths are relative to it."
+    default: "."
+  install:
+    description: >-
+      Install SciProof from PyPI (and set up Python). Set to "false" if the job has already
+      installed it.
+    default: "true"
+  version:
+    description: "SciProof version to install, for example 0.3.0. Empty means the latest release."
+    default: ""
+  python-version:
+    description: "Python version to set up when install is true."
+    default: "3.12"
+
+outputs:
+  result:
+    description: "PASS, FAIL or INCONCLUSIVE (ERROR if SciProof could not run)."
+    value: ${{ steps.verify.outputs.result }}
+  report:
+    description: "Path of the JSON report (schema sciproof.report)."
+    value: ${{ steps.verify.outputs.report }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      if: inputs.install == 'true'
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install SciProof
+      if: inputs.install == 'true'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        if [ -n "$VERSION" ]; then
+          python -m pip install --quiet --disable-pip-version-check "sciproof==$VERSION"
+        else
+          python -m pip install --quiet --disable-pip-version-check sciproof
+        fi
+        sciproof --version
+
+    - name: Verify
+      id: verify
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        MANIFEST: ${{ inputs.manifest }}
+        RERUN: ${{ inputs.rerun }}
+        CLEAN_ENV: ${{ inputs.clean-env }}
+        SIGNERS: ${{ inputs.allowed-signers }}
+        POLICY: ${{ inputs.policy }}
+      run: |
+        # Inputs reach the shell only through the environment above, never through string
+        # interpolation into this script.
+        report="${RUNNER_TEMP}/sciproof-report.json"
+        rm -f "$report"
+        args=(verify "$MANIFEST" --format markdown --save-json "$report")
+        if [ "$RERUN" = "true" ]; then
+          args+=(--rerun --yes)
+          if [ "$CLEAN_ENV" = "true" ]; then args+=(--clean-env); fi
+        fi
+        if [ -n "$SIGNERS" ]; then args+=(--allowed-signers "$SIGNERS"); fi
+        if [ -n "$POLICY" ]; then args+=(--policy "$POLICY"); fi
+
+        set +e
+        sciproof "${args[@]}" >> "$GITHUB_STEP_SUMMARY"
+        code=$?
+        set -e
+
+        result=ERROR
+        if [ -s "$report" ]; then
+          result=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["result"])' "$report" || echo ERROR)
+        fi
+        echo "result=$result" >> "$GITHUB_OUTPUT"
+        echo "report=$report" >> "$GITHUB_OUTPUT"
+        echo "SciProof result: $result (exit status $code)"
+        # 0 = PASS, 1 = FAIL, 2 = INCONCLUSIVE, 3 = error: the step fails unless it is a PASS
+        exit "$code"

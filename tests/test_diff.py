@@ -257,6 +257,8 @@ def test_json_is_strict_and_versioned(project, pair):
 
 def test_markdown_escapes_manifest_text(project, pair):
     old, new = pair()
+    # the number of installed packages must not matter: both manifests list none, then one is added
+    _edit(old, lambda d: d.update(dependencies=[]))
     _edit(
         new,
         lambda d: d.update(dependencies=[{"name": "x|<img src=1>", "version": "[a](http://e)"}]),

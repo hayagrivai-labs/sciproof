@@ -5,8 +5,8 @@ Every command ends with one of these exit codes, so that scripts and CI jobs can
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. For `verify`: the verdict is `PASS`. |
-| `1` | For `list --check`: any manifest `FAIL`s or is invalid. For `diff`: the two manifests differ. For `verify`: the verdict is `FAIL`. For `capture`: the command ran but exited with a nonzero status (the failure is still recorded; use `--allow-nonzero` to exit `0` anyway). |
-| `2` | For `verify` and `list --check`: the verdict is `INCONCLUSIVE`. For `suggest-inputs`: the audit hook never started, so nothing was observed. |
+| `1` | For `update`: the recorded command failed (the failure is recorded). For `list --check`: any manifest `FAIL`s or is invalid. For `diff`: the two manifests differ. For `verify`: the verdict is `FAIL`. For `capture`: the command ran but exited with a nonzero status (the failure is still recorded; use `--allow-nonzero` to exit `0` anyway). |
+| `2` | For `verify` and `list --check`: the verdict is `INCONCLUSIVE`. For `update`: the confirmation was declined and nothing ran. For `suggest-inputs`: the audit hook never started, so nothing was observed. |
 | `3` | Usage error, invalid or unreadable manifest, or a capture that could not be completed (for example a declared input is missing, or the command could not be started). |
 
 ## What the verdicts mean

@@ -1,0 +1,142 @@
+name: Action self-test
+
+# Runs the composite action in this repository (action.yml) on a small project, the way a user's
+# workflow would, and checks that it passes, fails and reports as it should.
+
+on:
+  push:
+    branches: [main]
+    paths: ["action.yml", ".github/workflows/action-selftest.yml", "src/**"]
+  pull_request:
+    paths: ["action.yml", ".github/workflows/action-selftest.yml", "src/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  current-source:
+    name: Action with the SciProof of this commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install this commit
+        run: python -m pip install .
+      - name: Record a small experiment
+        run: |
+          mkdir demo && cd demo
+          echo '{"x": 21}' > data.json
+          cat > exp.py <<'EOF'
+          import json, pathlib
+          d = json.loads(pathlib.Path("data.json").read_text())
+          pathlib.Path("result.json").write_text(json.dumps({"value": d["x"] * 2.0}))
+          EOF
+          sciproof capture --name demo --input data.json --input exp.py \
+            --output-numeric result.json --claim result.json '$.value >= 42' \
+            -- python exp.py
+          cat > policy.toml <<'EOF'
+          version = 1
+          [manifest]
+          require_exit_code = 0
+          min_claims = 1
+          EOF
+          cat > strict.toml <<'EOF'
+          version = 1
+          [manifest]
+          min_claims = 5
+          EOF
+
+      - name: Integrity check passes
+        id: pass
+        uses: ./
+        with:
+          install: "false"
+          working-directory: demo
+          manifest: demo.sciproof.json
+          policy: policy.toml
+      - name: Keep the report of that run (every run writes the same file)
+        run: cp "${{ steps.pass.outputs.report }}" "$RUNNER_TEMP/pass-report.json"
+      - name: Re-execution with a minimal environment passes
+        id: rerun
+        uses: ./
+        with:
+          install: "false"
+          working-directory: demo
+          manifest: demo.sciproof.json
+          rerun: "true"
+      - name: A failing policy fails the step
+        id: policy
+        continue-on-error: true
+        uses: ./
+        with:
+          install: "false"
+          working-directory: demo
+          manifest: demo.sciproof.json
+          policy: strict.toml
+      - name: Check what the steps reported
+        run: |
+          set -eu
+          test "${{ steps.pass.outputs.result }}" = "PASS"
+          test "${{ steps.rerun.outputs.result }}" = "PASS"
+          test "${{ steps.policy.outcome }}" = "failure"
+          test "${{ steps.policy.outputs.result }}" = "FAIL"
+          python - <<'EOF'
+          import json
+          report = json.load(open("${{ runner.temp }}/pass-report.json"))
+          assert report["schema"] == "sciproof.report", report["schema"]
+          assert report["policy"]["file"] == "policy.toml", report["policy"]
+          assert any(c["subject"].startswith("claim ") for c in report["checks"])
+          EOF
+
+  tampered:
+    name: A tampered output makes the step fail
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install .
+      - name: Record, then change an output
+        run: |
+          mkdir demo && cd demo
+          echo hello > in.txt
+          sciproof capture --name t --input in.txt --output out.txt -- python -c "open('out.txt','w').write('v1')"
+          echo tampered > out.txt
+      - id: verify
+        continue-on-error: true
+        uses: ./
+        with:
+          install: "false"
+          working-directory: demo
+          manifest: t.sciproof.json
+      - run: |
+          set -eu
+          test "${{ steps.verify.outcome }}" = "failure"
+          test "${{ steps.verify.outputs.result }}" = "FAIL"
+
+  from-pypi:
+    name: Action installing a released SciProof from PyPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Record with the released version
+        run: |
+          python -m pip install "sciproof==0.2.0"
+          mkdir demo && cd demo
+          echo hello > in.txt
+          sciproof capture --name r --input in.txt --output out.txt -- python -c "open('out.txt','w').write('v1')"
+      - id: verify
+        uses: ./
+        with:
+          version: "0.2.0"
+          python-version: "3.12"
+          working-directory: demo
+          manifest: r.sciproof.json
+      - run: test "${{ steps.verify.outputs.result }}" = "PASS"
