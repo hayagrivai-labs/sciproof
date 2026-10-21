@@ -184,7 +184,14 @@ def _holds(op: str, found: Any, expected: Any, claim: dict[str, Any]) -> bool:
     if op == "!=":
         return not _equal(found, expected)
     if op == "~=":
-        a, b = float(found), float(expected)
+        try:
+            a, b = float(found), float(expected)
+        except OverflowError:
+            # A Python int can outgrow every float while staying exact and
+            # finite (#88): compare it exactly instead of crashing. Equal
+            # values satisfy any tolerance; a float can never equal an int
+            # this large.
+            return bool(found == expected)
         if math.isinf(a) or math.isinf(b):
             return a == b
         return abs(a - b) <= max(claim["rtol"] * max(abs(a), abs(b)), claim["atol"])

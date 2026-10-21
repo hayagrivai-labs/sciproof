@@ -402,3 +402,39 @@ def test_cli_rejects_a_bad_claim(project, capsys):
     ]
     assert cli.main([*bad, "--", sys.executable, "experiment.py"]) == cli.EXIT_ERROR
     assert "expected 'LOCATION OP VALUE'" in capsys.readouterr().err
+
+
+# ------------------------------------------------------- ints beyond float
+
+HUGE = 10**400  # exact and finite, but no float can carry it
+
+
+def test_an_approximate_claim_on_a_huge_int_compares_exactly():
+    # ~= crashed with OverflowError on ints too large for a float (#88);
+    # equal values satisfy the tolerance, anything else is a verdict.
+    assert _holds("$.x ~= " + str(HUGE), HUGE) is True
+    assert _holds("$.x ~= " + str(HUGE + 1), HUGE) is False
+    assert _holds("$.x ~= 1", HUGE) is False
+
+
+def test_a_huge_int_claim_value_is_a_valid_manifest_number(project):
+    # == compares such ints exactly, so the manifest validator accepts the
+    # value instead of crashing write_manifest (#88).
+    path = _mutate(project, lambda d: d["claims"][0].update(value=HUGE))
+    manifest = load_manifest(path)
+    assert manifest["claims"][0]["value"] == HUGE
+
+
+@pytest.mark.parametrize(
+    ("mutate",),
+    [
+        (lambda d: d["execution"].update(duration_seconds=HUGE),),
+        (lambda d: d["claims"][1].update(rtol=HUGE),),
+    ],
+)
+def test_a_huge_int_in_a_validated_field_is_an_invalid_manifest(project, mutate):
+    # A manifest is untrusted input: a number no float can carry is reported
+    # as invalid instead of crashing every command that loads it (#88).
+    path = _mutate(project, mutate)
+    with pytest.raises(ManifestError, match="finite number >= 0"):
+        load_manifest(path)

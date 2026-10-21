@@ -181,6 +181,12 @@ def _check_hardware(hardware: Any, minor: int) -> None:
 
 
 def _finite_number(value: Any) -> bool:
+    # A Python int is exact and always finite, but math.isfinite() converts to
+    # float and raises OverflowError beyond ~1.8e308 (#88). The == and ordering
+    # operators compare such ints exactly, so a claim value this large is a
+    # valid number, not an error.
+    if isinstance(value, int) and not isinstance(value, bool):
+        return True
     return is_number(value) and math.isfinite(value)
 
 
@@ -241,6 +247,17 @@ def check_nesting(declared: list[tuple[str, str]]) -> None:
 def _finite_nonneg(value: Any, where: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise _fail(where, "expected a number")
+    if isinstance(value, int):
+        # Exact ints never fail math.isfinite(), but returning them as float
+        # can overflow; a manifest is untrusted input, so report a value that
+        # no float can carry as invalid instead of crashing every command
+        # that loads it (#88).
+        if value < 0:
+            raise _fail(where, "expected a finite number >= 0")
+        try:
+            return float(value)
+        except OverflowError:
+            raise _fail(where, "expected a finite number >= 0") from None
     if not math.isfinite(value) or value < 0:
         raise _fail(where, "expected a finite number >= 0")
     return float(value)
