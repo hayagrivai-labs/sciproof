@@ -373,6 +373,8 @@ def load_manifest(path: Path) -> dict[str, Any]:
         data = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject_duplicate_keys)
     except UnicodeDecodeError as exc:
         raise ManifestError(f"manifest is not valid UTF-8: {exc}") from exc
+    except OSError as exc:
+        raise ManifestError(f"cannot read manifest {path}: {exc}") from exc
     except (ValueError, RecursionError) as exc:  # includes JSONDecodeError and duplicate keys
         raise ManifestError(f"manifest is not valid JSON: {exc}") from exc
     return validate_manifest(data)

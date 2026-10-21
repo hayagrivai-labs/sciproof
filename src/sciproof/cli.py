@@ -47,6 +47,13 @@ EXIT_FAIL = 1
 EXIT_INCONCLUSIVE = 2
 EXIT_ERROR = 3
 
+
+class _ArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        self.print_usage(sys.stderr)
+        self.exit(EXIT_ERROR, f"{self.prog}: error: {message}\n")
+
+
 _STATUS_EXIT = {
     Status.PASS: EXIT_OK,
     Status.FAIL: EXIT_FAIL,
@@ -55,7 +62,7 @@ _STATUS_EXIT = {
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = _ArgumentParser(
         prog="sciproof",
         description="Record computational experiments and create verifiable evidence for them.",
     )
@@ -450,7 +457,10 @@ def _run_export(args: argparse.Namespace) -> int:
     if args.output is None:
         print(text, end="")
         return EXIT_OK
-    args.output.write_text(text, encoding="utf-8", newline="\n")
+    try:
+        args.output.write_text(text, encoding="utf-8", newline="\n")
+    except OSError as exc:
+        raise UsageError(f"cannot write export {args.output}: {exc}") from exc
     print(f"Wrote {args.output}")
     return EXIT_OK
 
@@ -521,7 +531,12 @@ def _run_verify(args: argparse.Namespace) -> int:
         policy=args.policy,
     )
     if args.save_json is not None:
-        args.save_json.write_text(format_report_json(report) + "\n", encoding="utf-8", newline="\n")
+        try:
+            args.save_json.write_text(
+                format_report_json(report) + "\n", encoding="utf-8", newline="\n"
+            )
+        except OSError as exc:
+            raise UsageError(f"cannot write JSON report {args.save_json}: {exc}") from exc
     if output_format == "json":
         print(format_report_json(report))
     elif output_format == "markdown":
