@@ -230,6 +230,29 @@ Python API: [docs/PYTHON_API.md](https://github.com/hayagrivai-labs/sciproof/blo
 
 Manifest format: [docs/MANIFEST.md](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/MANIFEST.md).
 
+## GitHub Action
+
+Check your experiment evidence on every push. The action installs SciProof, verifies a manifest, writes
+the report to the job summary and fails the step unless the result is `PASS`.
+
+```yaml
+name: Check evidence
+on: [push, pull_request]
+jobs:
+  sciproof:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hayagrivai-labs/sciproof@v0.3.1
+        with:
+          manifest: results/baseline.sciproof.json
+          policy: sciproof.policy.toml      # optional: rules the evidence must meet
+```
+
+By default nothing from the manifest is executed. `rerun: true` re-executes the recorded command,
+so use it only for manifests your own team committed, never for ones that come from a pull request.
+Inputs, outputs (`result`, `report`) and the safety notes: [docs/CI.md](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/CI.md).
+
 ## Threat model and limitations
 
 * A manifest contains a command and must be treated as untrusted. `inspect` and plain `verify`
