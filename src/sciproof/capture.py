@@ -95,7 +95,7 @@ def _hash_inputs(base: Path, inputs: list[str]) -> list[dict[str, Any]]:
 
 def _numeric_directory_message(relative: str) -> str:
     return (
-        f"{relative!r} is a directory; --output-numeric compares single .json, .csv or .npy "
+        f"{relative!r} is a directory; --output-numeric compares single .json, .csv, .tsv or .npy "
         "files. Declare the directory with --output (exact hashes) or its files individually."
     )
 

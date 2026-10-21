@@ -32,8 +32,8 @@ Two numbers `a` (recorded) and `b` (found) are equivalent when
 | JSON number written with `.` or an exponent (`1.5`, `2e3`) | a float: compared with the tolerance rule |
 | JSON integer (`100`) against another JSON integer | **exact**: Python integers are compared exactly, so differences above 2^53 are never hidden and the tolerance is *not* applied |
 | JSON integer against a JSON float (`100` vs `101.0`) | numbers: compared with the tolerance rule |
-| CSV cell that `float()` accepts | a float, so `100` vs `101` *is* subject to the tolerance in CSV |
-| CSV cell containing `_` (`1_000`) | text (Python's `float()` accepts digit separators, SciProof does not) |
+| CSV/TSV cell that `float()` accepts | a float, so `100` vs `101` *is* subject to the tolerance in CSV/TSV |
+| CSV/TSV cell containing `_` (`1_000`) | text (Python's `float()` accepts digit separators, SciProof does not) |
 | `NaN` | equal to `NaN`, different from every other value |
 | `Infinity` / `-Infinity` | equal only to the same infinity |
 | strings, `null`, `true`/`false` | must be **exactly** equal and of the same type |
@@ -42,7 +42,7 @@ Consequences worth knowing:
 
 * `true` is never equal to `1`, `null` is never equal to `0`, and `"1"` is never equal to `1`,
   whatever the tolerance.
-* The integer rule differs between JSON and CSV on purpose (integers above 2^53 are only
+* The integer rule differs between JSON and CSV/TSV on purpose (integers above 2^53 are only
   meaningful in JSON). If you want a count such as `100` vs `101` to tolerate a difference, write
   it as `100.0` in the JSON output.
 
@@ -55,7 +55,7 @@ Consequences worth knowing:
   disagree about which value wins, so the content is ambiguous. `capture` rejects such a file and
   a rerun that produces one is reported as `FAIL` ("cannot be compared numerically"). The same
   rule applies to manifests.
-* **CSV:** the number of rows and the number of cells in each row must match. The first row is
+* **CSV and TSV:** the number of rows and the number of cells in each row must match. The first row is
   compared like any other row, so a renamed or reordered column is a difference. There is no
   header-aware matching and rows are not sorted.
 * **`.npy` arrays** (needs the `numpy` extra): shape and dtype must match, then values are
@@ -67,7 +67,7 @@ Consequences worth knowing:
 | Format | Location text | Example |
 | --- | --- | --- |
 | JSON | `$.key[index]` | `$.metrics.acc[1]: recorded 0.8, found 0.5 (rtol=1e-09, atol=0.0)` |
-| CSV | `rNcM` (row, column; row 0 is the first line), plus the column name from the first line | `r2c1 (column 'loss'): recorded 0.4, found 0.9 (...)` |
+| CSV / TSV | `rNcM` (row, column; row 0 is the first line), plus the column name from the first line | `r2c1 (column 'loss'): recorded 0.4, found 0.9 (...)` |
 | `.npy` | `data[i, j]` | `data[0, 1]: recorded 1.0, found 2.0 (...)` |
 
 At most 10 differences are listed; the rest are summarised. A file that cannot be compared at

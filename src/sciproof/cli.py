@@ -97,7 +97,7 @@ def _build_parser() -> argparse.ArgumentParser:
         action="append",
         default=[],
         metavar="PATH",
-        help="declare a .json/.csv output compared with a numeric tolerance; repeatable",
+        help="declare a .json/.csv/.tsv output compared with a numeric tolerance; repeatable",
     )
     cap.add_argument(
         "--rtol",

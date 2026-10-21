@@ -241,3 +241,30 @@ def test_save_json_to_a_read_only_file_is_a_clean_error(project, capsys):
     captured = capsys.readouterr()
     assert code == cli.EXIT_ERROR
     assert "Traceback" not in captured.err
+
+
+def test_capture_verify_rerun_with_numeric_tsv(project, capsys):
+    (project.root / "experiment_tsv.py").write_text(
+        "import pathlib\n"
+        "pathlib.Path('out/table.tsv').write_text('metric\\tval\\nloss\\t0.1234567\\n')\n"
+    )
+    (project.root / "out").mkdir(exist_ok=True)
+    (project.root / "out" / "table.tsv").write_text("metric\tval\nloss\t0.1234567\n")
+    args = [
+        "capture",
+        "--name",
+        "exp_tsv",
+        "--output-numeric",
+        "out/table.tsv",
+        "--rtol",
+        "1e-5",
+        "--",
+        sys.executable,
+        "experiment_tsv.py",
+    ]
+    assert cli.main(args) == cli.EXIT_OK
+    capsys.readouterr()
+
+    assert cli.main(["verify", "exp_tsv.sciproof.json", "--rerun", "--yes"]) == cli.EXIT_OK
+    out = capsys.readouterr().out
+    assert "RESULT: PASS" in out

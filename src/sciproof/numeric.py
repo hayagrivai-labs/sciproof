@@ -1,4 +1,4 @@
-"""Numerical comparison of JSON and CSV files with explicit tolerances.
+"""Numerical comparison of JSON, CSV and TSV files with explicit tolerances.
 
 A value is compared as a number only if the file format says it is one (JSON numbers) or
 the whole CSV cell parses as a float. Everything else (strings, booleans, ``null``) must be
@@ -22,7 +22,7 @@ from sciproof.jsonstrict import reject_duplicate_keys
 
 MAX_NUMERIC_FILE_BYTES = 64 * 1024 * 1024
 MAX_REPORTED_DIFFERENCES = 10
-SUPPORTED_SUFFIXES = (".json", ".csv", ".npy")
+SUPPORTED_SUFFIXES = (".json", ".csv", ".tsv", ".npy")
 NUMPY_KINDS = "biufc"  # bool, int, unsigned, float, complex
 
 Leaf = tuple[str, object]
@@ -46,7 +46,7 @@ def _flatten_json(value: object, path: str, out: list[Leaf]) -> None:
 
 
 def load_numeric(path: Path) -> list[Leaf]:
-    """Parse a ``.json``, ``.csv`` or ``.npy`` file into ``(location, value)`` pairs."""
+    """Parse a ``.json``, ``.csv``, ``.tsv`` or ``.npy`` file into ``(location, value)`` pairs."""
     suffix = path.suffix.lower()
     if suffix not in SUPPORTED_SUFFIXES:
         raise NumericFormatError(
@@ -73,11 +73,13 @@ def load_numeric(path: Path) -> list[Leaf]:
             raise NumericFormatError(f"{path.name} is not valid JSON: {exc}") from exc
         return leaves
 
+    delimiter = "\t" if suffix == ".tsv" else ","
     try:
         # newline="" lets the csv module handle line breaks inside quoted fields (and CRLF)
-        rows = list(csv.reader(io.StringIO(text, newline="")))
+        rows = list(csv.reader(io.StringIO(text, newline=""), delimiter=delimiter))
     except csv.Error as exc:
-        raise NumericFormatError(f"{path.name} is not valid CSV: {exc}") from exc
+        format_name = "TSV" if suffix == ".tsv" else "CSV"
+        raise NumericFormatError(f"{path.name} is not valid {format_name}: {exc}") from exc
     leaves.append(("rows", len(rows)))
     for r, row in enumerate(rows):
         leaves.append((f"row{r}#cols", len(row)))
@@ -256,7 +258,7 @@ _CSV_CELL = re.compile(r"r(\d+)c(\d+)")
 
 
 def _csv_headers(leaves: list[Leaf]) -> dict[int, str]:
-    """Column index -> header text, taken from the first CSV row (empty for other formats)."""
+    """Column index -> header text, taken from the first CSV/TSV row (empty for other formats)."""
     headers: dict[int, str] = {}
     for location, value in leaves:
         match = _CSV_CELL.fullmatch(location)
@@ -266,7 +268,7 @@ def _csv_headers(leaves: list[Leaf]) -> dict[int, str]:
 
 
 def _describe(location: str, headers: dict[int, str]) -> str:
-    """Add the CSV column name to a cell location, e.g. ``r2c1 (column 'loss')``."""
+    """Add the CSV/TSV column name to a cell location, e.g. ``r2c1 (column 'loss')``."""
     match = _CSV_CELL.fullmatch(location)
     if match and match.group(1) != "0" and int(match.group(2)) in headers:
         return f"{location} (column {_short(headers[int(match.group(2))], 40)})"
@@ -350,6 +352,6 @@ def compare(expected: list[Leaf], actual: list[Leaf], rtol: float, atol: float) 
     """Return human-readable differences (empty list means equivalent within tolerance).
 
     Locations are ``$.key[index]`` for JSON, ``rNcM`` (row, column; row 0 is the first line,
-    usually the header) for CSV, and ``data[i, j]`` for arrays.
+    usually the header) for CSV/TSV, and ``data[i, j]`` for arrays.
     """
     return [d.message for d in compare_detailed(expected, actual, rtol, atol)]

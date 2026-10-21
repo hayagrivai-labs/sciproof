@@ -150,3 +150,45 @@ def test_a_number_is_never_equal_to_a_boolean_in_either_direction(tmp_path):
     zero = _json(tmp_path / "c.json", {"x": 0})
     no = _json(tmp_path / "d.json", {"x": False})
     assert compare(zero, no, 1.0, 1.0) != []
+
+
+def test_tsv_numbers_are_compared_with_tolerance_and_text_exactly(tmp_path):
+    (tmp_path / "a.tsv").write_text("name\tvalue\nrun1\t1.000000\nrun2\t2.0\n")
+    (tmp_path / "b.tsv").write_text("name\tvalue\nrun1\t1.0000001\nrun2\t2.0\n")
+    (tmp_path / "c.tsv").write_text("name\tvalue\nrun1\t1.5\nrun2\t2.0\n")
+    (tmp_path / "d.tsv").write_text("name\tvalue\nrunX\t1.0\nrun2\t2.0\n")
+    a, b, c, d = (load_numeric(tmp_path / f"{n}.tsv") for n in "abcd")
+    assert compare(a, b, rtol=1e-6, atol=0.0) == []
+    diffs = compare(a, c, rtol=1e-6, atol=0.0)
+    assert len(diffs) == 1
+    assert "r1c1 (column 'value'): recorded 1.0, found 1.5" in diffs[0]
+    assert compare(a, d, rtol=1e-6, atol=0.0) != []
+
+
+def test_tsv_quoted_tab_inside_cell(tmp_path):
+    (tmp_path / "a.tsv").write_text('col1\tcol2\n"val\twith\ttab"\t10.0\n')
+    (tmp_path / "b.tsv").write_text('col1\tcol2\n"val\twith\ttab"\t10.0000001\n')
+    (tmp_path / "c.tsv").write_text('col1\tcol2\n"different"\t10.0\n')
+    a, b, c = (load_numeric(tmp_path / f"{n}.tsv") for n in "abc")
+    assert dict(a)["r1c0"] == "val\twith\ttab"
+    assert compare(a, b, rtol=1e-6, atol=0.0) == []
+    assert compare(a, c, rtol=1e-6, atol=0.0) != []
+
+
+def test_tsv_ragged_rows(tmp_path):
+    (tmp_path / "a.tsv").write_text("1\t2\n3\n")
+    (tmp_path / "b.tsv").write_text("1\t2\n3\t4\n")
+    (tmp_path / "same.tsv").write_text("1\t2\n3\n")
+    a, b, same = (load_numeric(tmp_path / f"{n}.tsv") for n in ("a", "b", "same"))
+    assert compare(a, same, 0.0, 0.0) == []
+    assert compare(a, b, 1.0, 1.0) != []
+
+
+def test_unsupported_file_format_message(tmp_path):
+    f = tmp_path / "test.unknown"
+    f.write_text("1\t2\n")
+    with pytest.raises(
+        NumericFormatError,
+        match=r"numeric comparison supports \.json, \.csv, \.tsv, \.npy files, got 'test\.unknown'",
+    ):
+        load_numeric(f)

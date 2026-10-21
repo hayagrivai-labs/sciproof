@@ -25,7 +25,7 @@ read strictly (`jsonstrict.py`), and nothing is executed unless `--rerun` or `up
 | `manifest.py` | the manifest schema: build, validate, read and write |
 | `policy.py` | strict TOML policies; each rule becomes a check of the report |
 | `update.py` | `sciproof update`: capture again from the manifest's own declarations, then diff |
-| `numeric.py` | comparison of `.json`, `.csv` and `.npy` outputs with tolerances |
+| `numeric.py` | comparison of `.json`, `.csv`, `.tsv` and `.npy` outputs with tolerances |
 | `claims.py` | claims such as `$.accuracy >= 0.9` evaluated on numeric outputs |
 | `treehash.py` | one hash for a whole directory |
 | `hashing.py`, `paths.py`, `textutil.py` | file hashing, safe relative paths, safe text |

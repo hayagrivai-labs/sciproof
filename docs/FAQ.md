@@ -40,7 +40,7 @@ pick one.
 
 ## Which files can be compared with a tolerance?
 
-`.json` and `.csv` (standard library only) and `.npy` arrays when NumPy is installed
+`.json`, `.csv` and `.tsv` (standard library only) and `.npy` arrays when NumPy is installed
 (`pip install 'sciproof[numpy]'`). Everything else is compared by exact SHA-256.
 
 ## Will I get bit-identical results on another machine?
