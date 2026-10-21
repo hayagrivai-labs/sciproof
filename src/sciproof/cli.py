@@ -28,10 +28,12 @@ from sciproof.ledger import (
     list_manifests,
     worst_verdict,
 )
+from sciproof.manifest import load_manifest
 from sciproof.policy import POLICY_VERSION, load_policy
 from sciproof.signing import sign_manifest
 from sciproof.suggest import suggest_inputs
 from sciproof.textutil import safe_text
+from sciproof.update import declarations_of, describe_update, update_baseline
 from sciproof.verify import (
     DEFAULT_RERUN_TIMEOUT_SECONDS,
     Status,
@@ -245,6 +247,22 @@ def _build_parser() -> argparse.ArgumentParser:
     sig.add_argument("manifest", type=Path)
     sig.add_argument("--key", type=Path, required=True, metavar="KEY", help="private key file")
 
+    upd = sub.add_parser(
+        "update",
+        help="capture the recorded experiment again (re-baseline) and show what changed",
+        description=(
+            "Repeat the capture of MANIFEST with exactly the declarations it contains (command, "
+            "inputs, outputs, tolerances, claims, note, hardware), replace the manifest, and show "
+            "the differences from the old one. This EXECUTES the recorded command, like "
+            "'verify --rerun', so it asks for confirmation (or needs --yes)."
+        ),
+    )
+    upd.add_argument("manifest", type=Path)
+    upd.add_argument("--yes", action="store_true", help="do not ask for confirmation")
+    upd.add_argument("--dry-run", action="store_true", help="show what would happen; run nothing")
+    upd.add_argument("--note", metavar="TEXT", help="replace the note of the manifest")
+    upd.add_argument("--timeout", type=float, default=None, metavar="SECONDS")
+
     dif = sub.add_parser(
         "diff",
         help="compare two manifests: what changed between two recorded runs? (executes nothing)",
@@ -447,6 +465,35 @@ def _run_sign(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _run_update(args: argparse.Namespace) -> int:
+    if args.dry_run:
+        manifest = load_manifest(args.manifest)
+        print(describe_update(args.manifest.resolve(), declarations_of(manifest)))
+        return EXIT_OK
+    result = update_baseline(
+        args.manifest,
+        assume_yes=args.yes,
+        confirm=_confirm if not args.yes else None,
+        note=args.note,
+        timeout=args.timeout,
+    )
+    if result is None:
+        print("declined; nothing was executed and nothing was changed", file=sys.stderr)
+        return EXIT_INCONCLUSIVE
+    for warning in result.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    print(
+        f"Updated {result.capture.manifest_path.name} "
+        f"(command exit code {result.capture.exit_code})"
+    )
+    print()
+    print(result.diff.to_text())
+    if result.capture.exit_code != 0:
+        print("The command failed; the failure was recorded.", file=sys.stderr)
+        return EXIT_FAIL
+    return EXIT_OK
+
+
 def _run_diff(args: argparse.Namespace) -> int:
     output_format = _report_format(args)
     report = diff_manifests(args.old, args.new)
@@ -510,6 +557,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_verify(args)
         if args.command_name == "diff":
             return _run_diff(args)
+        if args.command_name == "update":
+            return _run_update(args)
         if args.command_name == "check-policy":
             return _run_check_policy(args)
         if args.command_name == "list":

@@ -25,6 +25,7 @@ from sciproof.export import to_openlineage as export_openlineage  # noqa: E402
 from sciproof.ledger import list_manifests  # noqa: E402
 from sciproof.manifest import load_manifest  # noqa: E402
 from sciproof.signing import SignatureError, sign_manifest  # noqa: E402
+from sciproof.update import UpdateResult, update_baseline  # noqa: E402
 from sciproof.verify import Check, Report, Status, report_to_dict  # noqa: E402
 from sciproof.verify import verify as verify_manifest  # noqa: E402
 
@@ -39,6 +40,7 @@ __all__ = [
     "SciProofError",
     "SignatureError",
     "Status",
+    "UpdateResult",
     "UsageError",
     "__version__",
     "capture_experiment",
@@ -49,5 +51,6 @@ __all__ = [
     "load_manifest",
     "report_to_dict",
     "sign_manifest",
+    "update_baseline",
     "verify_manifest",
 ]

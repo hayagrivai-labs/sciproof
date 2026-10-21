@@ -59,6 +59,14 @@ def claim_text(claim: dict[str, Any]) -> str:
     return text
 
 
+def claim_expression(claim: dict[str, Any]) -> str:
+    """The ``LOCATION OP VALUE [rtol=X atol=Y]`` text that parse_claim() turns back into a claim."""
+    text = f"{claim['location']} {claim['op']} {json.dumps(claim['value'])}"
+    if claim["op"] == "~=":
+        text += f" rtol={claim['rtol']!r} atol={claim['atol']!r}"
+    return text
+
+
 def parse_claim(output: str, expression: str) -> dict[str, Any]:
     """Turn ``output`` and ``"LOCATION OP VALUE [rtol=X] [atol=Y]"`` into a manifest claim.
 
