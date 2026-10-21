@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -81,6 +82,22 @@ def test_a_policy_with_only_a_version_has_no_rules():
 
 def test_the_digest_covers_the_exact_text():
     assert parse_policy("version = 1\n").sha256 != parse_policy("version = 1\n# x\n").sha256
+
+
+def test_a_utf8_bom_is_accepted_and_kept_in_the_digest(tmp_path):
+    path = tmp_path / "bom.toml"
+    raw = b"\xef\xbb\xbfversion = 1\n"
+    path.write_bytes(raw)
+
+    policy = load_policy(path)
+
+    assert policy.rules == {}
+    assert policy.sha256 == hashlib.sha256(raw).hexdigest()
+
+
+def test_a_utf8_bom_does_not_hide_a_toml_error():
+    with pytest.raises(PolicyError, match=r"not valid TOML:.*line 2"):
+        parse_policy("\ufeffversion = 1\n[manifest\n", file="bom.toml")
 
 
 @pytest.mark.parametrize(

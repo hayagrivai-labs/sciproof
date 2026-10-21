@@ -127,7 +127,9 @@ def _check_value(where: str, kind: str, value: Any) -> Any:
 def parse_policy(text: str, *, file: str = "policy") -> Policy:
     """Validate the text of a policy file."""
     try:
-        data = tomllib.loads(text)
+        # TOML 1.0 permits a UTF-8 BOM at the start of a file. Keep the original text for
+        # the digest, but omit the BOM because tomllib does not accept it.
+        data = tomllib.loads(text.removeprefix("\ufeff"))
     except tomllib.TOMLDecodeError as exc:
         raise PolicyError(f"{file}: not valid TOML: {exc}") from None
     if data.get("version") != POLICY_VERSION or isinstance(data.get("version"), bool):

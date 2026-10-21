@@ -6,6 +6,9 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* Policy files with a leading UTF-8 BOM are accepted; the original file bytes remain covered by
+  the policy SHA-256 digest.
+
 ## [0.3.1] - 2026-10-21
 
 ### Changed
