@@ -6,6 +6,12 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-21
+
+### Changed
+
+* The GitHub Action's description is short enough for the GitHub Marketplace (under 125 characters).
+
 ### Added
 
 * `CITATION.cff` (GitHub's "Cite this repository"), a page on showing that results come with evidence

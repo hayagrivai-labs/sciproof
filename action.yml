@@ -1,7 +1,5 @@
 name: "SciProof verify"
-description: >-
-  Verify recorded experiment evidence with SciProof (file hashes, optional re-execution with
-  numeric tolerances, claims, signatures, policy) and show the result in the job summary.
+description: "Verify experiment evidence recorded with SciProof: file hashes, re-execution, claims, signatures, policy."
 author: "HayagrivAI Labs"
 branding:
   icon: "check-circle"
