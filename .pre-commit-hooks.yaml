@@ -1,0 +1,15 @@
+- id: sciproof-check
+  name: Check SciProof manifests
+  description: Verify the integrity of every SciProof manifest without executing recorded commands
+  entry: sciproof list --check -r
+  language: python
+  pass_filenames: false
+  always_run: true
+
+- id: sciproof-policy
+  name: Check SciProof policy
+  description: Validate the conventional sciproof.policy.toml policy file
+  entry: sciproof check-policy sciproof.policy.toml
+  language: python
+  pass_filenames: false
+  files: ^sciproof\.policy\.toml$

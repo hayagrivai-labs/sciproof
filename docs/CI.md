@@ -36,6 +36,38 @@ JSON object with `name`, `result`, `checks`, `warnings` and `notes`.
 > Pin the actions you use to a commit SHA if your organisation requires it. The versions above
 > only illustrate the shape of the workflow.
 
+## Pre-commit
+
+SciProof publishes pre-commit hooks for checking manifests before they are committed. Add this to
+your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/hayagrivai-labs/sciproof
+    rev: v0.3.0
+    hooks:
+      - id: sciproof-check
+      # Optional: validate the conventional sciproof.policy.toml as well.
+      - id: sciproof-policy
+```
+
+`sciproof-check` runs `sciproof list --check -r`. It checks every `*.sciproof.json` file for
+integrity, never executes a command recorded in a manifest, and does not need filenames passed by
+pre-commit. The optional `sciproof-policy` hook runs `sciproof check-policy sciproof.policy.toml`
+when that file is changed.
+
+The hook exit codes are:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | All manifests pass (or the policy is valid). |
+| `1` | A manifest changed or is invalid, or a policy check failed. |
+| `2` | A manifest check is inconclusive, such as when a required input is missing. |
+| `3` | The command could not run or its arguments/policy are invalid. |
+
+Install the hooks with `pre-commit install`, then run all hooks once with
+`pre-commit run --all-files`.
+
 ## Re-running in CI
 
 `sciproof verify --rerun --yes` **executes the command recorded in the manifest** with the

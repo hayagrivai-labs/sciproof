@@ -10,6 +10,7 @@ All notable changes are listed here. The format follows
 
 * `CITATION.cff` (GitHub's "Cite this repository"), a page on showing that results come with evidence
   (`docs/BADGE.md`), and more complete PyPI metadata (keywords, classifiers, documentation links).
+* Pre-commit hooks for checking all manifests for integrity and optionally validating a policy file.
 
 ## [0.3.0] - 2026-10-21
 

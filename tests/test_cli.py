@@ -47,6 +47,20 @@ def test_capture_verify_inspect_round_trip(project, capsys):
     assert "SciProof manifest: exp" in capsys.readouterr().out
 
 
+def test_pre_commit_manifest_check_passes_and_detects_tampering(project, capsys):
+    """The command used by the pre-commit hook catches changed outputs without rerunning code."""
+    cli.main(_capture_args())
+    capsys.readouterr()
+
+    hook_command = ["list", "--check", "-r"]
+    assert cli.main(hook_command) == cli.EXIT_OK
+    assert "PASS" in capsys.readouterr().out
+
+    (project.root / "out" / "exact.txt").write_text("tampered")
+    assert cli.main(hook_command) == cli.EXIT_FAIL
+    assert "FAIL" in capsys.readouterr().out
+
+
 def test_verify_exit_codes(project, capsys):
     cli.main(_capture_args())
     capsys.readouterr()
