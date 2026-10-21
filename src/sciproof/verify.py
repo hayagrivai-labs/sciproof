@@ -30,6 +30,7 @@ from sciproof.environment import (
     clean_environment,
     hardware_info,
     interpreter_info,
+    normalize_package_name,
     platform_info,
     selected_env_vars,
 )
@@ -463,10 +464,10 @@ def _compare_environment(base: Path, manifest: dict[str, Any]) -> list[str]:
                 f"{key}: {old_platform.get(key)!r} was used, now {now_platform[key]!r}"
             )
 
-    now_packages = {name.lower().replace("_", "-"): ver for name, ver in current["packages"]}
+    now_packages = {normalize_package_name(name): ver for name, ver in current["packages"]}
     package_notes = []
     for dep in manifest["dependencies"]:
-        key = dep["name"].lower().replace("_", "-")
+        key = normalize_package_name(dep["name"])
         if key not in now_packages:
             package_notes.append(f"package {dep['name']}=={dep['version']} is not installed")
         elif now_packages[key] != dep["version"]:

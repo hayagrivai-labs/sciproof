@@ -42,21 +42,63 @@ GPU_PROBE_TIMEOUT_SECONDS = 10
 MAX_GPUS = 16
 _GPU_QUERY = ("--query-gpu=name,driver_version,memory.total", "--format=csv,noheader,nounits")
 
+# The source of the function that lists installed packages. One text, two uses: the child
+# interpreter that runs the experiment executes it (it has no SciProof), and this process runs it
+# through ``exec`` when it has to describe itself, so both always list packages the same way.
+#
+# ``importlib.metadata`` parses the METADATA file of every package just to learn its name, which
+# takes about 2 ms per package. The directory of an installed package is named
+# ``<name>-<version>.dist-info`` (or ``.egg-info``), which already says both; reading that is
+# about 50 times faster. Anything that does not fit (a zipped egg, an unusual layout) is read the
+# slow, exact way.
+_LIST_PACKAGES_SOURCE = r"""
+def list_packages():
+    import importlib.metadata as md
+    import re
+
+    seen = {}
+    for dist in md.distributions():
+        path = getattr(dist, "_path", None)
+        match = None
+        if path is not None:
+            match = re.fullmatch(r"(.+?)-([0-9][^-]*)\.(?:dist|egg)-info", path.name)
+        if match:
+            name, version = match.group(1), match.group(2)
+        else:
+            name, version = (dist.metadata["Name"] or "").strip(), dist.version
+        if name:
+            seen[re.sub(r"[-_.]+", "-", name).lower()] = [name, version]
+    return sorted(seen.values(), key=lambda item: item[0].lower())
+"""
+
 # Executed by the interpreter that runs the experiment. It prints one JSON document.
-_PROBE_SCRIPT = r"""
-import importlib.metadata as md, json, platform, sys
-seen = {}
-for dist in md.distributions():
-    name = (dist.metadata["Name"] or "").strip()
-    if name:
-        seen[name.lower().replace("_", "-")] = [name, dist.version]
+_PROBE_SCRIPT = (
+    "import json, platform, sys\n"
+    + _LIST_PACKAGES_SOURCE
+    + """
 print(json.dumps({
     "version": platform.python_version(),
     "implementation": platform.python_implementation(),
     "byteorder": sys.byteorder,
-    "packages": sorted(seen.values(), key=lambda item: item[0].lower()),
+    "packages": list_packages(),
 }))
 """
+)
+
+
+def normalize_package_name(name: str) -> str:
+    """The standard (PEP 503) normal form of a package name: ``Jaraco.Context`` and
+    ``jaraco_context`` are the same package. Keep in step with the line in
+    ``_LIST_PACKAGES_SOURCE``, which cannot import this module."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def list_packages() -> list[list[str]]:
+    """``[name, version]`` of every installed package, sorted by name (see the note above)."""
+    namespace: dict[str, Any] = {}
+    exec(_LIST_PACKAGES_SOURCE, namespace)  # noqa: S102  (a constant defined in this module)
+    packages: list[list[str]] = namespace["list_packages"]()
+    return packages
 
 
 def hardware_info() -> dict[str, Any]:
@@ -143,18 +185,11 @@ def clean_environment(
 
 
 def _own_interpreter_info() -> dict[str, Any]:
-    import importlib.metadata as md
-
-    seen: dict[str, list[str]] = {}
-    for dist in md.distributions():
-        name = (dist.metadata["Name"] or "").strip()
-        if name:
-            seen[name.lower().replace("_", "-")] = [name, dist.version]
     return {
         "version": platform.python_version(),
         "implementation": platform.python_implementation(),
         "byteorder": sys.byteorder,
-        "packages": sorted(seen.values(), key=lambda item: item[0].lower()),
+        "packages": list_packages(),
     }
 
 

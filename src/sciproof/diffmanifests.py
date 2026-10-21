@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from sciproof.claims import claim_text
+from sciproof.environment import normalize_package_name
 from sciproof.errors import UnsafePathError
 from sciproof.hashing import sha256_file
 from sciproof.manifest import load_manifest
@@ -182,7 +183,7 @@ def _tree_state(dirty: bool) -> str:
 
 def _packages(manifest: dict[str, Any]) -> dict[str, tuple[str, str]]:
     return {
-        d["name"].lower().replace("_", "-"): (d["name"], d["version"])
+        normalize_package_name(d["name"]): (d["name"], d["version"])
         for d in manifest["dependencies"]
     }
 
