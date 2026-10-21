@@ -107,7 +107,7 @@ $ sciproof verify baseline.sciproof.json
   not checked: reproducibility: the recorded command was not executed
   not checked: scientific validity: a matching result is not shown to be correct
   not checked: files that were not declared as inputs or outputs
-  not checked: authenticity: no signature was checked, so who produced this evidence is not verified
+  not checked: authenticity: manifests are unsigned, so who produced this evidence is not verified
 
 RESULT: PASS
 ```
