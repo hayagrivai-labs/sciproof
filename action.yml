@@ -36,7 +36,7 @@ inputs:
       installed it.
     default: "true"
   version:
-    description: "SciProof version to install, for example 0.3.0. Empty means the latest release."
+    description: "SciProof version to install, for example 0.3.0 (this action needs 0.3.0 or later). Empty means the latest release."
     default: ""
   python-version:
     description: "Python version to set up when install is true."
@@ -87,6 +87,14 @@ runs:
         # interpolation into this script.
         report="${RUNNER_TEMP}/sciproof-report.json"
         rm -f "$report"
+        echo "report=$report" >> "$GITHUB_OUTPUT"
+
+        # This action writes the JSON report with --save-json, which SciProof 0.3.0 introduced.
+        if ! sciproof verify --help 2>/dev/null | grep -q -e '--save-json'; then
+          echo "result=ERROR" >> "$GITHUB_OUTPUT"
+          echo "::error title=SciProof is too old::this version of the action needs SciProof 0.3.0 or later, found $(sciproof --version 2>&1). Leave the 'version' input empty or use 0.3.0 or later."
+          exit 3
+        fi
         args=(verify "$MANIFEST" --format markdown --save-json "$report")
         if [ "$RERUN" = "true" ]; then
           args+=(--rerun --yes)
@@ -105,7 +113,6 @@ runs:
           result=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["result"])' "$report" || echo ERROR)
         fi
         echo "result=$result" >> "$GITHUB_OUTPUT"
-        echo "report=$report" >> "$GITHUB_OUTPUT"
         echo "SciProof result: $result (exit status $code)"
         # 0 = PASS, 1 = FAIL, 2 = INCONCLUSIVE, 3 = error: the step fails unless it is a PASS
         exit "$code"

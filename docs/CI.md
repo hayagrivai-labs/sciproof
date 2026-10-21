@@ -93,7 +93,7 @@ the step unless the result is `PASS`.
 | `policy` | | a [policy file](POLICY.md) |
 | `allowed-signers` | | an OpenSSH allowed-signers file ([signing](SIGNING.md)) |
 | `working-directory` | `.` | the directory the paths are relative to |
-| `version` | latest | the SciProof version to install, for example `0.3.0` |
+| `version` | latest | the SciProof version to install, for example `0.3.0` (the action needs 0.3.0 or later and fails with a clear message on an older one) |
 | `install` | `true` | set to `false` if the job already installed SciProof |
 | `python-version` | `3.12` | used when `install` is true |
 

@@ -118,25 +118,69 @@ jobs:
           test "${{ steps.verify.outcome }}" = "failure"
           test "${{ steps.verify.outputs.result }}" = "FAIL"
 
-  from-pypi:
-    name: Action installing a released SciProof from PyPI
+  old-version:
+    name: Action installs a pinned release from PyPI and refuses one that is too old
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Record with the released version
+      - name: Record with the old release
         run: |
           python -m pip install "sciproof==0.2.0"
           mkdir demo && cd demo
           echo hello > in.txt
           sciproof capture --name r --input in.txt --output out.txt -- python -c "open('out.txt','w').write('v1')"
       - id: verify
+        continue-on-error: true
         uses: ./
         with:
           version: "0.2.0"
+          working-directory: demo
+          manifest: r.sciproof.json
+      - run: |
+          set -eu
+          test "${{ steps.verify.outcome }}" = "failure"
+          test "${{ steps.verify.outputs.result }}" = "ERROR"
+          # the pinned release really was installed from PyPI by the action
+          test "$(python -m pip show sciproof | sed -n 's/^Version: //p')" = "0.2.0"
+
+  latest-release:
+    name: Action with the latest release on PyPI (skipped until a release has --save-json)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Is a release that this action supports on PyPI?
+        id: available
+        run: |
+          python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, urllib.request
+          data = json.load(urllib.request.urlopen("https://pypi.org/pypi/sciproof/json", timeout=30))
+          def key(v):
+              try:
+                  return tuple(int(p) for p in v.split(".")[:3])
+              except ValueError:
+                  return (0,)
+          ok = any(key(v) >= (0, 3, 0) and any(not f.get("yanked") for f in files) for v, files in data["releases"].items())
+          print("supported=" + ("true" if ok else "false"))
+          EOF
+      - name: Record with this commit
+        if: steps.available.outputs.supported == 'true'
+        run: |
+          python -m pip install .
+          mkdir demo && cd demo
+          echo hello > in.txt
+          sciproof capture --name r --input in.txt --output out.txt -- python -c "open('out.txt','w').write('v1')"
+      - id: verify
+        if: steps.available.outputs.supported == 'true'
+        uses: ./
+        with:
           python-version: "3.12"
           working-directory: demo
           manifest: r.sciproof.json
-      - run: test "${{ steps.verify.outputs.result }}" = "PASS"
+      - if: steps.available.outputs.supported == 'true'
+        run: test "${{ steps.verify.outputs.result }}" = "PASS"
