@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use SciProof in your research, please cite it as below."
+title: "SciProof"
+abstract: >-
+  Record a computational experiment once, then let anyone check the evidence: file hashes,
+  opt-in re-execution with numeric tolerances, claims, signatures and policies. Local-first,
+  no runtime dependencies.
+type: software
+authors:
+  - name: "HayagrivAI Labs"
+version: 0.3.0
+date-released: 2026-10-21
+license: MIT
+repository-code: "https://github.com/hayagrivai-labs/sciproof"
+url: "https://hayagrivai-labs.github.io/sciproof/"
+keywords:
+  - reproducibility
+  - provenance
+  - research software
+  - verification

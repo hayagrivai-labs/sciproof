@@ -6,6 +6,11 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+* `CITATION.cff` (GitHub's "Cite this repository"), a page on showing that results come with evidence
+  (`docs/BADGE.md`), and more complete PyPI metadata (keywords, classifiers, documentation links).
+
 ## [0.3.0] - 2026-10-21
 
 Nothing here changes how existing manifests are read or written.

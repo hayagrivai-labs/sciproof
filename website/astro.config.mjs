@@ -13,6 +13,24 @@ export default defineConfig({
       description:
         'Record a computational experiment once, then let anyone check the evidence: PASS, FAIL or INCONCLUSIVE.',
       favicon: '/favicon.svg',
+      head: [
+        {
+          tag: 'script',
+          attrs: { type: 'application/ld+json' },
+          content: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'SoftwareApplication',
+            name: 'SciProof',
+            applicationCategory: 'DeveloperApplication',
+            operatingSystem: 'Linux, macOS, Windows',
+            license: 'https://opensource.org/license/mit',
+            url: SITE + BASE + '/',
+            codeRepository: REPO_URL,
+            description:
+              'Record a computational experiment once, then let anyone check the evidence: PASS, FAIL or INCONCLUSIVE.',
+          }),
+        },
+      ],
       disable404Route: true, // src/pages/404.astro is used instead (same look as the landing page)
       social: [{ icon: 'github', label: 'GitHub', href: REPO_URL }],
       // "Last updated" is set per page from git history by scripts/sync.mjs;
@@ -48,6 +66,7 @@ export default defineConfig({
             { label: 'Policies', slug: 'docs/policy' },
             { label: 'Updating a baseline', slug: 'docs/update' },
             { label: 'Claims', slug: 'docs/claims' },
+            { label: 'Show your evidence', slug: 'docs/badge' },
             { label: 'Signing manifests', slug: 'docs/signing' },
             { label: 'Comparing two runs', slug: 'docs/diff' },
             { label: 'Listing and exporting', slug: 'docs/export' },

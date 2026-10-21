@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://hayagrivai-labs.github.io/sciproof/sitemap-index.xml
