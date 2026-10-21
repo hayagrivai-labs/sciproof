@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 from sciproof import __version__, cli
 
 
@@ -206,3 +208,63 @@ def test_inspect_and_verify_do_not_crash_on_an_unencodable_terminal(project, mon
         )
         assert completed.returncode == 0, completed.stderr
         assert "Traceback" not in completed.stderr
+
+
+def test_unwritable_save_json_path_is_clean_error(project, capsys):
+    cli.main(_capture_args())
+    capsys.readouterr()
+
+    # Missing parent directory
+    code = cli.main(["verify", "exp.sciproof.json", "--save-json", "missing_dir/out.json"])
+    assert code == cli.EXIT_ERROR
+    captured = capsys.readouterr()
+    assert "RESULT: PASS" in captured.out
+    assert "error: cannot write" in captured.err
+    assert "Traceback" not in captured.err
+
+    # Target path is an existing directory
+    code_dir = cli.main(["verify", "exp.sciproof.json", "--save-json", "out"])
+    assert code_dir == cli.EXIT_ERROR
+    captured_dir = capsys.readouterr()
+    assert "RESULT: PASS" in captured_dir.out
+    assert "error: cannot write" in captured_dir.err
+    assert "Traceback" not in captured_dir.err
+
+
+def test_unwritable_export_output_path_is_clean_error(project, capsys):
+    cli.main(_capture_args())
+    capsys.readouterr()
+
+    # Missing parent directory
+    code = cli.main(["export", "exp.sciproof.json", "-o", "missing_dir/out.json"])
+    assert code == cli.EXIT_ERROR
+    captured = capsys.readouterr()
+    assert "error: cannot write" in captured.err
+    assert "Traceback" not in captured.err
+
+    # Target path is an existing directory
+    code_dir = cli.main(["export", "exp.sciproof.json", "-o", "out"])
+    assert code_dir == cli.EXIT_ERROR
+    captured_dir = capsys.readouterr()
+    assert "error: cannot write" in captured_dir.err
+    assert "Traceback" not in captured_dir.err
+
+
+def test_unwritable_readonly_target_is_clean_error(project, capsys):
+    cli.main(_capture_args())
+    capsys.readouterr()
+
+    ro_file = project.root / "readonly.json"
+    ro_file.write_text("initial")
+    os.chmod(ro_file, 0o444)  # noqa: S103
+    try:
+        code = cli.main(["verify", "exp.sciproof.json", "--save-json", str(ro_file)])
+        if code == cli.EXIT_OK:
+            pytest.skip("platform does not enforce read-only files for this user")
+        assert code == cli.EXIT_ERROR
+        captured = capsys.readouterr()
+        assert "RESULT: PASS" in captured.out
+        assert "error: cannot write" in captured.err
+        assert "Traceback" not in captured.err
+    finally:
+        os.chmod(ro_file, 0o600)

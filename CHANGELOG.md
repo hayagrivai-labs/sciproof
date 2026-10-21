@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* Unwritable output paths for `verify --save-json` and `export -o` report a clean error with exit status 3 instead of an unhandled traceback, and the verdict is printed before `--save-json` writes.
 * Policy files with a leading UTF-8 BOM are accepted; the original file bytes remain covered by
   the policy SHA-256 digest.
 
