@@ -11,6 +11,10 @@ All notable changes are listed here. The format follows
 * `capture --tolerance OUTPUT 'rtol=X atol=Y'` gives one numeric output its own tolerance (the other
   numeric outputs keep `--rtol`/`--atol`). `update` now keeps per-output tolerances instead of
   refusing manifests that have them.
+* `sciproof calibrate MANIFEST --runs N` runs the recorded command several times and reports how much
+  each output varies: exact outputs must be identical, numeric outputs are measured against the
+  recorded tolerance and a `--tolerance` is suggested. It asks for the same confirmation as
+  `verify --rerun` and puts the outputs back afterwards.
 
 ## [0.3.2] - 2026-10-23
 

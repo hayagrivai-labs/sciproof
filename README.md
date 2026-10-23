@@ -162,6 +162,7 @@ sciproof verify  MANIFEST [--rerun] [--yes] [--strict-env] [--clean-env]
 sciproof inspect MANIFEST
 sciproof diff    OLD NEW [--format text|json|markdown]
 sciproof update  MANIFEST [--yes] [--dry-run] [--note TEXT]
+sciproof calibrate MANIFEST [--runs N] [--yes] [--timeout S]
 sciproof check-policy FILE
 sciproof sign    MANIFEST --key KEY
 sciproof list    [DIR] [-r] [--check] [--format text|json|markdown]
@@ -215,6 +216,10 @@ sciproof suggest-inputs [--input P]... [--output P]... -- COMMAND [ARGS...]
   clean Git tree, signed, at least one claim, no tolerance looser than a ceiling, rerun with
   `--clean-env`, ...); each rule is a check of the report, and an unmet requirement is
   `INCONCLUSIVE`, not a pass ([docs/POLICY.md](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/POLICY.md)).
+* `calibrate` runs the recorded command several times and measures how much the outputs vary:
+  exact outputs must be identical, numeric ones get a suggested tolerance; it executes the
+  command, so it asks for confirmation
+  ([details](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/CALIBRATE.md)).
 * `update` captures the recorded experiment again with the declarations already in the manifest
   and shows what changed; it executes the recorded command, so it asks for confirmation
   ([details](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/UPDATE.md)).

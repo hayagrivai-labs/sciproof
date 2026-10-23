@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from sciproof import __version__
+from sciproof.calibrate import calibrate
 from sciproof.capture import DEFAULT_ATOL, DEFAULT_MAX_LOG_BYTES, DEFAULT_RTOL, capture
 from sciproof.diffmanifests import diff_manifests, format_diff_json
 from sciproof.errors import ConfirmationRequired, SciProofError, UsageError
@@ -279,6 +280,22 @@ def _build_parser() -> argparse.ArgumentParser:
     upd.add_argument("--dry-run", action="store_true", help="show what would happen; run nothing")
     upd.add_argument("--note", metavar="TEXT", help="replace the note of the manifest")
     upd.add_argument("--timeout", type=float, default=None, metavar="SECONDS")
+
+    cal = sub.add_parser(
+        "calibrate",
+        help="run the recorded command several times and measure how much its outputs vary",
+        description=(
+            "Run the command of MANIFEST --runs times and compare the declared outputs of the "
+            "runs with each other and with the recorded baseline: exact outputs must be "
+            "identical, numeric outputs are measured and a tolerance is suggested. This EXECUTES "
+            "the recorded command, like 'verify --rerun', so it asks for confirmation (or needs "
+            "--yes). The outputs are put back afterwards and the manifest is not changed."
+        ),
+    )
+    cal.add_argument("manifest", type=Path)
+    cal.add_argument("--runs", type=int, default=5, metavar="N", help="2 to 50 (default 5)")
+    cal.add_argument("--yes", action="store_true", help="do not ask for confirmation")
+    cal.add_argument("--timeout", type=float, default=None, metavar="SECONDS", help="per run")
 
     dif = sub.add_parser(
         "diff",
@@ -546,6 +563,21 @@ def _run_update(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _run_calibrate(args: argparse.Namespace) -> int:
+    report = calibrate(
+        args.manifest,
+        runs=args.runs,
+        assume_yes=args.yes,
+        confirm=_confirm if not args.yes else None,
+        timeout=args.timeout,
+    )
+    if report is None:
+        print("declined; nothing was executed", file=sys.stderr)
+        return EXIT_INCONCLUSIVE
+    print(report.to_text())
+    return EXIT_OK if report.ok else EXIT_FAIL
+
+
 def _run_diff(args: argparse.Namespace) -> int:
     output_format = _report_format(args)
     report = diff_manifests(args.old, args.new)
@@ -611,6 +643,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_diff(args)
         if args.command_name == "update":
             return _run_update(args)
+        if args.command_name == "calibrate":
+            return _run_calibrate(args)
         if args.command_name == "check-policy":
             return _run_check_policy(args)
         if args.command_name == "list":

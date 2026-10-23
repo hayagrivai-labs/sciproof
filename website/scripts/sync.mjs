@@ -63,6 +63,7 @@ const PAGES = [
   { slug: 'python-api', title: 'Python API', source: 'docs/PYTHON_API.md', description: 'Capture and verify from Python: functions, types and stability.' },
   { slug: 'policy', title: 'Policies', source: 'docs/POLICY.md', description: 'Rules about the evidence itself, checked on every verification.' },
   { slug: 'update', title: 'Updating a baseline', source: 'docs/UPDATE.md', description: 'sciproof update: re-baseline an experiment and see what changed.' },
+  { slug: 'calibrate', title: 'Choosing a tolerance', source: 'docs/CALIBRATE.md', description: 'sciproof calibrate: measure how much the outputs vary between runs.' },
   { slug: 'claims', title: 'Claims', source: 'docs/CLAIMS.md', description: 'Checkable statements about values in output files.' },
   { slug: 'signing', title: 'Signing manifests', source: 'docs/SIGNING.md', description: 'Sign a manifest and check the signature with OpenSSH.' },
   { slug: 'export', title: 'Listing and exporting', source: 'docs/LIST_AND_EXPORT.md', description: 'sciproof list and sciproof export (in-toto Statement).' },
