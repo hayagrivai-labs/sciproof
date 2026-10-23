@@ -166,7 +166,8 @@ sciproof calibrate MANIFEST [--runs N] [--yes] [--timeout S]
 sciproof check-policy FILE
 sciproof sign    MANIFEST --key KEY
 sciproof list    [DIR] [-r] [--check] [--format text|json|markdown]
-sciproof export  MANIFEST [--format in-toto|openlineage] [-o FILE]
+sciproof export  MANIFEST [--format in-toto|openlineage|latex] [--value NAME OUTPUT LOCATION]...
+                 [-o FILE]
 sciproof suggest-inputs [--input P]... [--output P]... -- COMMAND [ARGS...]
 ```
 

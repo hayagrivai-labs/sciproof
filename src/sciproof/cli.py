@@ -22,6 +22,7 @@ from sciproof.errors import ConfirmationRequired, SciProofError, UsageError
 from sciproof.export import format_in_toto, format_openlineage
 from sciproof.inspect_manifest import inspect_file
 from sciproof.junit import list_junit, report_junit
+from sciproof.latex import to_latex
 from sciproof.ledger import (
     format_json,
     format_markdown,
@@ -337,10 +338,21 @@ def _build_parser() -> argparse.ArgumentParser:
     exp.add_argument("manifest", type=Path)
     exp.add_argument(
         "--format",
-        choices=("in-toto", "openlineage"),
+        choices=("in-toto", "openlineage", "latex"),
         default="in-toto",
         help="in-toto: an unsigned Statement v1 with hashes; openlineage: START and "
-        "COMPLETE/FAIL run events with the inputs and outputs (no hashes, no verdict)",
+        "COMPLETE/FAIL run events with the inputs and outputs (no hashes, no verdict); "
+        "latex: LaTeX macros (\\newcommand) for values of the outputs (needs --value; only written "
+        "if the integrity verification passes)",
+    )
+    exp.add_argument(
+        "--value",
+        nargs=3,
+        action="append",
+        default=[],
+        metavar=("NAME", "OUTPUT", "LOCATION"),
+        help="with --format latex: a macro NAME for the value at LOCATION of the declared "
+        "OUTPUT, for example --value accuracy out/metrics.json '$.accuracy'; repeatable",
     )
     exp.add_argument(
         "-o", "--output", type=Path, metavar="FILE", help="write here (default: stdout)"
@@ -514,8 +526,13 @@ def _write_user_file(path: Path, text: str) -> None:
 
 
 def _run_export(args: argparse.Namespace) -> int:
-    printer = format_openlineage if args.format == "openlineage" else format_in_toto
-    text = printer(args.manifest)
+    if args.value and args.format != "latex":
+        raise UsageError("--value is only used with --format latex")
+    if args.format == "latex":
+        text = to_latex(args.manifest, [(name, out, loc) for name, out, loc in args.value])
+    else:
+        printer = format_openlineage if args.format == "openlineage" else format_in_toto
+        text = printer(args.manifest)
     if args.output is None:
         print(text, end="")
         return EXIT_OK

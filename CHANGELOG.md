@@ -15,6 +15,9 @@ All notable changes are listed here. The format follows
   each output varies: exact outputs must be identical, numeric outputs are measured against the
   recorded tolerance and a `--tolerance` is suggested. It asks for the same confirmation as
   `verify --rerun` and puts the outputs back afterwards.
+* `export --format latex --value NAME OUTPUT LOCATION` writes values of the declared outputs as LaTeX
+  macros, so the numbers of a paper come from the recorded outputs. Nothing is written unless the
+  integrity verification passes.
 
 ## [0.3.2] - 2026-10-23
 
