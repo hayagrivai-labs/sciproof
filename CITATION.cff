@@ -8,8 +8,8 @@ abstract: >-
 type: software
 authors:
   - name: "HayagrivAI Labs"
-version: 0.3.0
-date-released: 2026-10-21
+version: 0.3.2
+date-released: 2026-10-23
 license: MIT
 repository-code: "https://github.com/hayagrivai-labs/sciproof"
 url: "https://hayagrivai-labs.github.io/sciproof/"

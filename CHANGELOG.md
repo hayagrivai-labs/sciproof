@@ -6,28 +6,38 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-23
+
+### Fixed
+
 * `update` keeps the log limit of the manifest it replaces: a capture made with
   `--max-log-bytes 0` no longer gets its stdout/stderr text back after an update (#87).
 * On Windows, a command given by its bare name can be a `.cmd` or `.bat` tool on `PATH` (`npm`,
   `mvn`, your own `tool.cmd`), as in a terminal. The manifest still records the name as typed (#102).
-* Policies can require a note (`manifest.require_note`) or a hardware record
-  (`manifest.require_hardware`); missing records fail these checks.
+* `verify --save-json` and `export -o` report an unwritable path as `error: cannot write ...` with
+  exit status 3 instead of a traceback with exit status 1 (which means verification failed).
+  `verify --save-json` now writes the file after the verdict is printed (#73).
+* Integers too large for a float no longer end in a traceback: the `~=` claim operator compares
+  them exactly, and a number that no float can carry in a validated manifest field is reported as
+  an invalid manifest (#88).
+* A manifest whose `environment.hardware` has no `cpu_count` is rejected at validation instead of
+  passing `verify` and crashing `inspect` and `diff` (#89).
+* `created_at` must be an ISO 8601 timestamp with a timezone offset; any other value is rejected at
+  validation instead of crashing `verify --policy` (`max_age_days`) or `export --format
+  openlineage`. An OpenLineage export whose start time falls out of range is a clean usage error
+  instead of an `OverflowError` (#90).
+* `capture_experiment(base=...)` accepts a string or any `os.PathLike`, like the rest of the Python
+  API (#103).
+* Policy files with a leading UTF-8 BOM are accepted; the original file bytes remain covered by
+  the policy SHA-256 digest (#74).
 
 ### Added
 
-* A shell-pipeline tutorial for capturing and verifying non-Python experiments.
-
 * Numeric comparison (`--output-numeric`) supports tab-separated values (`.tsv`), compared with
   the declared tolerance like `.csv`.
-* Policy files with a leading UTF-8 BOM are accepted; the original file bytes remain covered by
-  the policy SHA-256 digest.
-* `verify --save-json` and `export -o` report an unwritable path as `error: cannot write ...` with
-  exit status 3 instead of a traceback with exit status 1 (which means verification failed).
-  `verify --save-json` now writes the file after the verdict is printed.
-* `created_at` must be an ISO 8601 timestamp with a timezone offset; a manifest with any other
-  value is rejected at validation instead of crashing `verify --policy` (max_age_days) or
-  `export --format openlineage` with a traceback. An OpenLineage export whose start time falls
-  out of range is a clean usage error instead of an `OverflowError`.
+* Policies can require a note (`manifest.require_note`) or a hardware record
+  (`manifest.require_hardware`); missing records fail these checks.
+* A shell-pipeline tutorial for capturing and verifying non-Python experiments.
 
 ## [0.3.1] - 2026-10-21
 

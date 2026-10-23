@@ -110,7 +110,7 @@ the step unless the result is `PASS`.
 
 ```yaml
       - uses: actions/checkout@v7
-      - uses: hayagrivai-labs/sciproof@v0.3.1
+      - uses: hayagrivai-labs/sciproof@v0.3.2
         with:
           manifest: baseline.sciproof.json
           policy: sciproof.policy.toml     # optional
