@@ -7,7 +7,9 @@ manifest, and tests.
 ## Where to start
 
 Every task below is a real, open issue with the problem, the files to touch and the acceptance
-criteria written down. Pick one, comment that you take it, and ask questions in the issue.
+criteria written down. Pick one, comment `/take` on it (it is then assigned to you; an assigned
+issue with no activity for 21 days goes back to the pool), and ask questions in the issue. You can
+hold two at a time.
 
 * **First contribution (a few hours):** [good first issue](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
 * **Some knowledge of the code:** [difficulty: medium](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22difficulty%3A+medium%22)
@@ -30,6 +32,12 @@ a first pull request to go through a round or two of changes. If a pull request 
 a comment and someone will pick it up.
 
 ## Development setup
+
+No setup on your machine: [open the repository in GitHub Codespaces](https://codespaces.new/hayagrivai-labs/sciproof)
+(or in any dev container). It installs Python 3.12 and the development dependencies, so `ruff` and
+`pytest` work right away.
+
+On your own machine:
 
 ```bash
 python -m venv .venv

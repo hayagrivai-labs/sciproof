@@ -1,0 +1,34 @@
+name: Release stale assignments
+
+# An issue that someone claimed with "/take" but that has had no activity for 21 days goes back to
+# the pool, so that a claim never blocks a task for good. Only issues labelled "help wanted" are
+# touched, and the person is told how to take it again.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"   # Mondays, 05:17 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unassign issues without activity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          cutoff=$(date -u -d '21 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh issue list --repo "$REPO" --state open --label "help wanted" --limit 200 \
+            --json number,updatedAt,assignees \
+            --jq ".[] | select((.assignees | length) > 0 and .updatedAt < \"$cutoff\") | .number" |
+          while read -r number; do
+            logins=$(gh issue view "$number" --repo "$REPO" --json assignees --jq '[.assignees[].login] | join(" ")')
+            for login in $logins; do
+              gh issue edit "$number" --repo "$REPO" --remove-assignee "$login"
+            done
+            gh issue comment "$number" --repo "$REPO" --body "There has been no activity here for 21 days, so this issue is back in the pool (previously assigned to ${logins}). Nothing is lost: if you are still working on it, comment \`/take\` again; anyone else is welcome to take it too."
+          done

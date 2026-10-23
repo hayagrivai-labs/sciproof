@@ -312,7 +312,8 @@ Nothing below is promised. Each item is only worth doing if real users ask for i
 
 New here? The open issues are written for newcomers: each one has the problem, the files to touch
 and the acceptance criteria. Start with the [good first issues](https://github.com/hayagrivai-labs/sciproof/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22),
-or ask in [Discussions](https://github.com/hayagrivai-labs/sciproof/discussions). A map of the code is in
+comment `/take` on one to claim it, or ask in [Discussions](https://github.com/hayagrivai-labs/sciproof/discussions).
+Nothing to install: [open it in Codespaces](https://codespaces.new/hayagrivai-labs/sciproof). A map of the code is in
 [docs/ARCHITECTURE.md](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/ARCHITECTURE.md).
 
 See [CONTRIBUTING.md](https://github.com/hayagrivai-labs/sciproof/blob/main/CONTRIBUTING.md). Quick checks: `ruff check .`, `ruff format --check .`,

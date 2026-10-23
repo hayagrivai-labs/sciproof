@@ -6,6 +6,9 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* Contributing is easier: a dev container (GitHub Codespaces) with the dependencies installed, a short
+  welcome for first issues and pull requests, `/take` to claim an issue labelled `help wanted`, and
+  claims without activity for 21 days go back to the pool.
 * `sciproof badge MANIFEST -o FILE.svg` verifies a manifest and writes a static SVG badge with the
   verdict, whether the command was re-executed, and the date; nothing from the manifest goes into
   it. The exit status is the verdict's.

@@ -1,0 +1,95 @@
+name: Welcome
+
+# Greets people who open their first issue or pull request here, and answers "/take" on an issue.
+#
+# Safety: nothing from the pull request is checked out or run. The workflow only posts comments
+# and assigns issues with the repository token, and everything that comes from the event (user
+# names, comment text) reaches the shell through environment variables, never through string
+# interpolation into the script. pull_request_target is used so that the token can comment on
+# pull requests from forks.
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  greet-issue:
+    if: github.event_name == 'issues' && contains(fromJSON('["FIRST_TIME_CONTRIBUTOR","FIRST_TIMER"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          # a person who opened issues before has been greeted already
+          if [ "$(gh issue list --repo "$REPO" --author "$AUTHOR" --state all --json number --jq 'length')" -gt 1 ]; then exit 0; fi
+          gh issue comment "$NUMBER" --repo "$REPO" --body "Thanks for opening your first issue, @${AUTHOR}! A maintainer will have a look. A minimal example (the command and, if relevant, a small manifest with secrets removed) makes it much easier to reproduce. If you would like to fix something yourself, the [good first issues](https://github.com/${REPO}/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) are written so that a first contribution fits in an afternoon."
+
+  greet-pull-request:
+    if: github.event_name == 'pull_request_target' && contains(fromJSON('["FIRST_TIME_CONTRIBUTOR","FIRST_TIMER"]'), github.event.pull_request.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          # a person with an earlier pull request (not merged yet) has been greeted already
+          if [ "$(gh pr list --repo "$REPO" --author "$AUTHOR" --state all --json number --jq 'length')" -gt 1 ]; then exit 0; fi
+          gh pr comment "$NUMBER" --repo "$REPO" --body "Welcome, @${AUTHOR}, and thank you for your first pull request! Two things that help:
+
+          * GitHub holds the checks of a first pull request until a maintainer approves them, so the CI results appear a little later; nothing is wrong on your side.
+          * You can run the same checks locally: \`ruff format .\`, \`ruff check .\` and \`python -m pytest\` (see [CONTRIBUTING.md](https://github.com/${REPO}/blob/main/CONTRIBUTING.md)).
+
+          A maintainer reads every pull request. A round or two of small changes is normal for a first one."
+
+  take-issue:
+    if: github.event_name == 'issue_comment' && !github.event.issue.pull_request && startsWith(github.event.comment.body, '/take')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign the issue to the commenter
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+          USER_LOGIN: ${{ github.event.comment.user.login }}
+          STATE: ${{ github.event.issue.state }}
+          LABELS: ${{ join(github.event.issue.labels.*.name, '|') }}
+          ASSIGNEES: ${{ join(github.event.issue.assignees.*.login, ' ') }}
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          # "/take" alone or followed by text, not "/takeover"
+          if ! printf '%s' "$COMMENT" | head -n 1 | grep -Eq '^/take([[:space:]]|$)'; then exit 0; fi
+          reply() { gh issue comment "$NUMBER" --repo "$REPO" --body "$1"; }
+
+          if [ "$STATE" != "open" ]; then
+            exit 0
+          fi
+          case "|$LABELS|" in
+            *"|help wanted|"*|*"|good first issue|"*) ;;
+            *) reply "@${USER_LOGIN} this issue is not marked \`help wanted\`, so it is not open for claiming with \`/take\`. Comment here to discuss it with a maintainer."; exit 0 ;;
+          esac
+          if [ -n "$ASSIGNEES" ]; then
+            reply "@${USER_LOGIN} this issue is already assigned to ${ASSIGNEES}. If it has gone quiet, say so here and a maintainer will help."
+            exit 0
+          fi
+          mine=$(gh issue list --repo "$REPO" --state open --assignee "$USER_LOGIN" --json number --jq 'length')
+          if [ "$mine" -ge 2 ]; then
+            reply "@${USER_LOGIN} you already have ${mine} open issues assigned. Please finish or release one first, so that others get a chance too."
+            exit 0
+          fi
+          gh issue edit "$NUMBER" --repo "$REPO" --add-assignee "$USER_LOGIN"
+          reply "Assigned to @${USER_LOGIN}. Thank you! Ask here if anything is unclear. If you cannot continue, just say so and it goes back to the pool; an assigned issue with no activity for 21 days goes back to the pool automatically."
