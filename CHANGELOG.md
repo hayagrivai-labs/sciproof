@@ -8,6 +8,8 @@ All notable changes are listed here. The format follows
 
 * `update` keeps the log limit of the manifest it replaces: a capture made with
   `--max-log-bytes 0` no longer gets its stdout/stderr text back after an update (#87).
+* On Windows, a command given by its bare name can be a `.cmd` or `.bat` tool on `PATH` (`npm`,
+  `mvn`, your own `tool.cmd`), as in a terminal. The manifest still records the name as typed (#102).
 * Policies can require a note (`manifest.require_note`) or a hardware record
   (`manifest.require_hardware`); missing records fail these checks.
 

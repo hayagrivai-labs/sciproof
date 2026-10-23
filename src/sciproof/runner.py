@@ -70,6 +70,33 @@ def _stop(process: subprocess.Popen[bytes]) -> None:
         process.wait()
 
 
+_BATCH_SUFFIXES = (".cmd", ".bat")
+
+
+def _resolve_batch_tool(name: str, env: Mapping[str, str] | None) -> str | None:
+    """On Windows, the ``.cmd`` or ``.bat`` file that a bare command name stands for, or ``None``.
+
+    ``CreateProcess`` only appends ``.exe`` to a bare name, so ``npm`` or ``mvn`` (``npm.cmd``,
+    ``mvn.cmd``) cannot be started although a terminal finds them. The lookup uses the ``PATH`` and
+    ``PATHEXT`` of the environment the command will get, never the project directory (a file in
+    an untrusted project must not be picked for a bare name). Anything else is left to the system.
+    """
+    if sys.platform != "win32" or any(char in name for char in "/\\:"):
+        return None
+    source = os.environ if env is None else env
+    lookup = {key.upper(): value for key, value in source.items()}
+    extensions = [e.lower() for e in lookup.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if e]
+    suffix = Path(name).suffix.lower()
+    candidates = [name] if suffix in extensions else [name + e for e in extensions]
+    for directory in filter(None, lookup.get("PATH", "").split(os.pathsep)):
+        for candidate in candidates:
+            path = Path(directory) / candidate
+            if path.is_file():
+                # a real executable that comes first on PATH is left to the system
+                return str(path) if path.suffix.lower() in _BATCH_SUFFIXES else None
+    return None
+
+
 def run_command(
     argv: list[str],
     cwd: Path,
@@ -91,9 +118,13 @@ def run_command(
         options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
     else:
         options["start_new_session"] = True
+    launch = list(argv)
+    batch_tool = _resolve_batch_tool(launch[0], env)
+    if batch_tool is not None:
+        launch[0] = batch_tool
     try:
         process = subprocess.Popen(  # noqa: S603
-            argv,
+            launch,
             cwd=cwd,
             stdin=subprocess.DEVNULL,
             env=None if env is None else dict(env),
