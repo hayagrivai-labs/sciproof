@@ -112,6 +112,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help=f"absolute tolerance for numeric outputs (default {DEFAULT_ATOL})",
     )
     cap.add_argument(
+        "--tolerance",
+        nargs=2,
+        action="append",
+        default=[],
+        metavar=("OUTPUT", "SETTINGS"),
+        help="a tolerance for one --output-numeric file instead of --rtol/--atol, for example "
+        "--tolerance out/loss.csv 'rtol=1e-3 atol=1e-6' (either setting may be left out); "
+        "repeatable",
+    )
+    cap.add_argument(
         "--timeout",
         type=float,
         default=None,
@@ -341,6 +351,31 @@ def _confirm(prompt: str) -> bool:
     return answer.strip().lower() == "yes"
 
 
+def _parse_tolerances(pairs: list[list[str]]) -> dict[str, dict[str, float]]:
+    """``--tolerance OUTPUT 'rtol=1e-3 atol=1e-6'`` pairs as ``{output: {setting: value}}``."""
+    result: dict[str, dict[str, float]] = {}
+    for output, text in pairs:
+        if output in result:
+            raise UsageError(f"--tolerance given twice for {output!r}")
+        settings: dict[str, float] = {}
+        for item in text.replace(",", " ").split():
+            name, _, number = item.partition("=")
+            if name not in ("rtol", "atol") or not number:
+                raise UsageError(
+                    f"--tolerance {output!r}: expected 'rtol=X', 'atol=Y' or both, got {item!r}"
+                )
+            if name in settings:
+                raise UsageError(f"--tolerance {output!r}: {name} given twice")
+            try:
+                settings[name] = float(number)
+            except ValueError:
+                raise UsageError(f"--tolerance {output!r}: {name} must be a number") from None
+        if not settings:
+            raise UsageError(f"--tolerance {output!r}: no setting given; use 'rtol=X atol=Y'")
+        result[output] = settings
+    return result
+
+
 def _run_capture(args: argparse.Namespace) -> int:
     command = list(args.cmd)
     if command and command[0] == "--":
@@ -358,6 +393,7 @@ def _run_capture(args: argparse.Namespace) -> int:
         numeric_outputs=args.output_numeric,
         rtol=args.rtol,
         atol=args.atol,
+        tolerances=_parse_tolerances(args.tolerance),
         timeout=args.timeout,
         max_log_bytes=args.max_log_bytes,
         force=args.force,

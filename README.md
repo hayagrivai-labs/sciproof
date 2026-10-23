@@ -150,7 +150,8 @@ A walkthrough with NumPy and pandas, including how to choose tolerances: [docs/T
 
 ```text
 sciproof capture --name NAME [--input P]... [--output P]... [--output-numeric P]...
-                 [--rtol X] [--atol Y] [--timeout S] [--max-log-bytes N]
+                 [--rtol X] [--atol Y] [--tolerance P 'rtol=X atol=Y']...
+                 [--timeout S] [--max-log-bytes N]
                  [--claim OUTPUT 'LOCATION OP VALUE']... [--note TEXT] [--record-hardware]
                  [--force] [--allow-nonzero]
                  -- COMMAND [ARGS...]

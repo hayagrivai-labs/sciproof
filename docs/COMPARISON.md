@@ -25,6 +25,19 @@ Two numbers `a` (recorded) and `b` (found) are equivalent when
   and with `rtol >= 2` a number is equivalent to its negative. `sciproof capture` prints a warning
   when `rtol >= 1`.
 
+### A different tolerance for one output
+
+`--rtol` and `--atol` apply to every `--output-numeric` file. When one file needs another rule (a
+loss that is noisy next to a count that must match closely), give it its own:
+
+```bash
+sciproof capture --name run --rtol 1e-9   --output-numeric out/counts.json --output-numeric out/loss.csv   --tolerance out/loss.csv 'rtol=1e-3 atol=1e-6'   -- python run.py
+```
+
+A setting that is left out keeps the value of `--rtol`/`--atol`. The tolerance is stored with
+that output in the manifest, so `verify`, `diff` and `update` use it; `--tolerance` on a file that
+is not a `--output-numeric` file is an error.
+
 ## Which values are numbers
 
 | Value | Treated as |

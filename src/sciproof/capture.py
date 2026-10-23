@@ -174,6 +174,7 @@ def capture(
     numeric_outputs: list[str] | None = None,
     rtol: float = DEFAULT_RTOL,
     atol: float = DEFAULT_ATOL,
+    tolerances: dict[str, dict[str, float]] | None = None,
     timeout: float | None = None,
     max_log_bytes: int = DEFAULT_MAX_LOG_BYTES,
     force: bool = False,
@@ -195,6 +196,13 @@ def capture(
         raise CaptureError("no command given")
     if not (math.isfinite(rtol) and math.isfinite(atol)) or rtol < 0 or atol < 0:
         raise CaptureError("rtol and atol must be finite numbers that are not negative")
+    for settings in (tolerances or {}).values():
+        extra = set(settings) - {"rtol", "atol"}
+        if extra:
+            raise CaptureError(f"unknown tolerance setting {sorted(extra)[0]!r}; use rtol or atol")
+        for value in settings.values():
+            if not (math.isfinite(value) and value >= 0):
+                raise CaptureError("rtol and atol must be finite numbers that are not negative")
     if timeout is not None and not (math.isfinite(timeout) and timeout > 0):
         raise CaptureError("timeout must be a positive number of seconds")
     if max_log_bytes < 0:
@@ -207,6 +215,17 @@ def capture(
         numeric_paths = [to_manifest_path(base, p) for p in (numeric_outputs or [])]
     except UnsafePathError as exc:
         raise CaptureError(str(exc)) from exc
+    tolerance_by_path: dict[str, dict[str, float]] = {}
+    for user_path, settings in (tolerances or {}).items():
+        try:
+            tolerance_by_path[to_manifest_path(base, user_path)] = settings
+        except UnsafePathError as exc:
+            raise CaptureError(str(exc)) from exc
+    for relative in tolerance_by_path:
+        if relative not in numeric_paths:
+            raise CaptureError(
+                f"tolerance for {relative!r}: the file must be declared with --output-numeric"
+            )
     _unique(input_paths, "--input")
     _unique(exact_paths + numeric_paths, "--output/--output-numeric")
     _refuse_evidence_paths(input_paths + exact_paths + numeric_paths, name)
@@ -249,12 +268,18 @@ def capture(
         else:
             before[relative] = sha256_file(target)[0] if target.is_file() else None
 
-    if numeric_paths and rtol >= 1:
-        warnings.append(
-            f"rtol={rtol} is 1 or more: a relative tolerance this large accepts values that "
-            "differ by 100% or more (any number is then equivalent to 0, and a value to its "
-            "negation when rtol >= 2). Use a smaller rtol unless that is intended"
-        )
+    large = (
+        "a relative tolerance this large accepts values that differ by 100% or more (any number "
+        "is then equivalent to 0, and a value to its negation when rtol >= 2). Use a smaller "
+        "rtol unless that is intended"
+    )
+    uses_default = any("rtol" not in tolerance_by_path.get(r, {}) for r in numeric_paths)
+    if uses_default and rtol >= 1:
+        warnings.append(f"rtol={rtol} is 1 or more: {large}")
+    for relative in numeric_paths:
+        own = tolerance_by_path.get(relative, {}).get("rtol")
+        if own is not None and own >= 1:
+            warnings.append(f"rtol={own} for {relative!r} is 1 or more: {large}")
 
     git = git_info(base)
     if git and git["dirty"]:
@@ -334,8 +359,8 @@ def capture(
                 snapshot_digest, _ = sha256_file(staging / snapshot_name)
                 record["compare"] = {
                     "mode": "numeric",
-                    "rtol": rtol,
-                    "atol": atol,
+                    "rtol": tolerance_by_path.get(relative, {}).get("rtol", rtol),
+                    "atol": tolerance_by_path.get(relative, {}).get("atol", atol),
                     "snapshot": {
                         "path": f"{snapshot_dir_name(name)}/{snapshot_name}",
                         "sha256": snapshot_digest,

@@ -62,6 +62,8 @@ class Declarations:
     note: str | None
     record_hardware: bool
     max_log_bytes: int = DEFAULT_MAX_LOG_BYTES
+    #: outputs whose tolerance differs from ``rtol``/``atol`` (the most common one)
+    tolerances: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 def log_limit_of(manifest: dict[str, Any]) -> int:
@@ -80,16 +82,19 @@ def log_limit_of(manifest: dict[str, Any]) -> int:
 
 
 def declarations_of(manifest: dict[str, Any]) -> Declarations:
-    """Read the capture arguments back from a manifest. Raises ``UsageError`` if they differ per
-    output in a way ``capture`` cannot express (it takes one tolerance for all numeric outputs)."""
+    """Read the capture arguments back from a manifest.
+
+    The most common tolerance of the numeric outputs becomes ``rtol``/``atol``; an output with a
+    different one is listed in ``tolerances``, which is what ``--tolerance`` records.
+    """
     numeric = [o for o in manifest["outputs"] if o["compare"]["mode"] == "numeric"]
-    tolerances = {(o["compare"]["rtol"], o["compare"]["atol"]) for o in numeric}
-    if len(tolerances) > 1:
-        raise UsageError(
-            "the numeric outputs of this manifest have different tolerances, which `capture` "
-            "cannot express; capture it again by hand"
-        )
-    rtol, atol = next(iter(tolerances)) if tolerances else (None, None)
+    pairs = [(o["compare"]["rtol"], o["compare"]["atol"]) for o in numeric]
+    rtol, atol = max(pairs, key=pairs.count) if pairs else (None, None)
+    different = {
+        o["path"]: {"rtol": o["compare"]["rtol"], "atol": o["compare"]["atol"]}
+        for o in numeric
+        if (o["compare"]["rtol"], o["compare"]["atol"]) != (rtol, atol)
+    }
     return Declarations(
         name=manifest["name"],
         argv=list(manifest["command"]["argv"]),
@@ -102,6 +107,7 @@ def declarations_of(manifest: dict[str, Any]) -> Declarations:
         note=manifest.get("note"),
         record_hardware=bool(manifest["environment"].get("hardware")),
         max_log_bytes=log_limit_of(manifest),
+        tolerances=different,
     )
 
 
@@ -201,6 +207,7 @@ def update_baseline(
                 numeric_outputs=declarations.numeric_outputs,
                 rtol=declarations.rtol,
                 atol=declarations.atol,
+                tolerances=declarations.tolerances,
                 timeout=timeout,
                 max_log_bytes=declarations.max_log_bytes,
                 force=True,

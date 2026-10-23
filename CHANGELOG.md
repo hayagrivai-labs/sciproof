@@ -8,6 +8,9 @@ All notable changes are listed here. The format follows
 
 * A mutation-fuzz test damages every field of a valid manifest and checks that no reader ends in
   a traceback (it finds all the crashes fixed in 0.3.2 when run against 0.3.1).
+* `capture --tolerance OUTPUT 'rtol=X atol=Y'` gives one numeric output its own tolerance (the other
+  numeric outputs keep `--rtol`/`--atol`). `update` now keeps per-output tolerances instead of
+  refusing manifests that have them.
 
 ## [0.3.2] - 2026-10-23
 

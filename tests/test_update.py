@@ -13,6 +13,11 @@ from sciproof.errors import CaptureError, ConfirmationRequired, UsageError
 from sciproof.update import declarations_of, describe_update, update_baseline
 from sciproof.verify import Status, verify
 
+TWO_FILES = (
+    "import json, os; os.makedirs('out', exist_ok=True); "
+    "[json.dump({'v': 1.0}, open(f'out/{n}.json', 'w')) for n in 'abc']"
+)
+
 CLAIMS = [
     ("out/result.json", "$.value >= 42"),
     ("out/result.json", '$.label == "ok"'),
@@ -52,14 +57,28 @@ def test_declarations_are_read_back_from_a_manifest(project):
     assert [parse_claim(o, e) for o, e in d.claims] == [parse_claim(o, e) for o, e in CLAIMS]
 
 
-def test_different_tolerances_per_output_cannot_be_updated(project):
-    project.capture()
-    data = json.loads(project.manifest.read_text())
-    second = dict(data["outputs"][1])
-    second.update(path="out/other.json", compare={**second["compare"], "rtol": 0.5})
-    data["outputs"].append(second)
-    with pytest.raises(UsageError, match="different tolerances"):
-        declarations_of(data)
+def test_different_tolerances_per_output_are_read_back_and_kept_by_an_update(project):
+    project.capture(
+        argv=[sys.executable, "-c", TWO_FILES],
+        outputs=[],
+        numeric_outputs=["out/a.json", "out/b.json", "out/c.json"],
+        rtol=1e-6,
+        atol=0.0,
+        tolerances={"out/b.json": {"rtol": 0.5}, "out/c.json": {"atol": 1e-3}},
+    )
+    declared = declarations_of(json.loads(project.manifest.read_text()))
+    assert (declared.rtol, declared.atol) == (1e-6, 0.0)  # the most common pair
+    assert declared.tolerances == {
+        "out/b.json": {"rtol": 0.5, "atol": 0.0},
+        "out/c.json": {"rtol": 1e-6, "atol": 1e-3},
+    }
+    update_baseline(project.manifest, assume_yes=True)
+    outputs = {o["path"]: o["compare"] for o in json.loads(project.manifest.read_text())["outputs"]}
+    assert [(outputs[p]["rtol"], outputs[p]["atol"]) for p in sorted(outputs)] == [
+        (1e-6, 0.0),
+        (0.5, 0.0),
+        (1e-6, 1e-3),
+    ]
 
 
 # ---------------------------------------------------------------- the update
