@@ -162,6 +162,7 @@ sciproof verify  MANIFEST [--rerun] [--yes] [--strict-env] [--clean-env]
 sciproof inspect MANIFEST
 sciproof diff    OLD NEW [--format text|json|markdown]
 sciproof badge   MANIFEST [-o FILE.svg] [--rerun --yes]
+sciproof record  --name NAME [--input P]... [--exclude P]... [--fast] -- COMMAND [ARGS...]
 sciproof update  MANIFEST [--yes] [--dry-run] [--note TEXT]
 sciproof calibrate MANIFEST [--runs N] [--yes] [--timeout S]
 sciproof check-policy FILE
@@ -218,6 +219,10 @@ sciproof suggest-inputs [--input P]... [--output P]... -- COMMAND [ARGS...]
   clean Git tree, signed, at least one claim, no tolerance looser than a ceiling, rerun with
   `--clean-env`, ...); each rule is a check of the report, and an unmet requirement is
   `INCONCLUSIVE`, not a pass ([docs/POLICY.md](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/POLICY.md)).
+* `record` captures a command without declaring any file: it runs it, detects the inputs (files
+  Python read) and outputs (files created or changed), runs it again to see which outputs are
+  stable, and prints the equivalent `capture` command
+  ([details](https://github.com/hayagrivai-labs/sciproof/blob/main/docs/RECORD.md)).
 * `calibrate` runs the recorded command several times and measures how much the outputs vary:
   exact outputs must be identical, numeric ones get a suggested tolerance; it executes the
   command, so it asks for confirmation

@@ -33,6 +33,7 @@ from sciproof.ledger import (
 )
 from sciproof.manifest import load_manifest
 from sciproof.policy import POLICY_VERSION, load_policy
+from sciproof.record import record
 from sciproof.signing import sign_manifest
 from sciproof.suggest import suggest_inputs
 from sciproof.textutil import safe_text
@@ -285,6 +286,36 @@ def _build_parser() -> argparse.ArgumentParser:
     bad.add_argument("--yes", action="store_true", help="do not ask for confirmation (--rerun)")
     bad.add_argument("--clean-env", action="store_true", help="with --rerun: minimal environment")
     bad.add_argument("--timeout", type=float, default=3600.0, metavar="SECONDS")
+    rec = sub.add_parser(
+        "record",
+        help="capture an experiment without declaring files: inputs and outputs are detected",
+        description=(
+            "Run COMMAND, find the files it read (inputs, Python commands only) and the files it "
+            "created or changed (outputs), run it again to see which outputs are stable, then "
+            "capture it with what was found and print the equivalent 'capture' command. The "
+            "command runs three times (twice with --fast). See docs/RECORD.md."
+        ),
+    )
+    rec.add_argument("--name", required=True, help="experiment name (also names the manifest)")
+    rec.add_argument(
+        "--input", action="append", default=[], metavar="PATH", help="an input to add by hand"
+    )
+    rec.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help="a file or directory that is neither input nor output; repeatable",
+    )
+    rec.add_argument(
+        "--fast", action="store_true", help="skip the second run (outputs are not checked)"
+    )
+    rec.add_argument("--timeout", type=float, default=None, metavar="SECONDS", help="per run")
+    rec.add_argument("--max-log-bytes", type=int, default=DEFAULT_MAX_LOG_BYTES)
+    rec.add_argument("--note", metavar="TEXT", help="free text stored in the manifest")
+    rec.add_argument("--record-hardware", action="store_true")
+    rec.add_argument("--force", action="store_true", help="overwrite an existing manifest")
+    rec.add_argument("cmd", nargs=argparse.REMAINDER, metavar="-- COMMAND [ARGS...]")
 
     upd = sub.add_parser(
         "update",
@@ -614,6 +645,51 @@ def _run_badge(args: argparse.Namespace) -> int:
     return _STATUS_EXIT[report.status]
 
 
+def _run_record(args: argparse.Namespace) -> int:
+    command = list(args.cmd)
+    if command and command[0] == "--":
+        command = command[1:]
+    if not command:
+        raise SciProofError(
+            "no command given; usage: sciproof record --name NAME [options] -- COMMAND"
+        )
+    result = record(
+        name=args.name,
+        argv=command,
+        base=Path.cwd(),
+        inputs=args.input,
+        exclude=args.exclude,
+        fast=args.fast,
+        timeout=args.timeout,
+        max_log_bytes=args.max_log_bytes,
+        force=args.force,
+        note=args.note,
+        record_hardware=args.record_hardware,
+    )
+    for warning in result.capture.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    print(f"Evidence written to {result.capture.manifest_path.name}")
+    print(f"  inputs found:   {len(result.inputs)}")
+    print(f"  outputs, exact: {len(result.exact)}")
+    print(f"  outputs, numeric: {len(result.numeric)}")
+    for path, settings in sorted(result.tolerances.items()):
+        shown = " ".join(f"{k}={v:g}" for k, v in settings.items())
+        print(f"    {safe_text(path)}: varies between runs, tolerance {shown}")
+    for path, reason in result.excluded:
+        print(f"  NOT declared: {safe_text(path)} ({safe_text(reason, 200)})")
+    for note in result.notes:
+        print(f"  note: {safe_text(note, 300)}")
+    print()
+    print("Equivalent command (commit it, or run it again later):")
+    print(f"  {safe_text(result.command_line, 4000)}")
+    print("Check the list above: only files that Python opened are detected as inputs.")
+    if result.tolerances:
+        print("The tolerances come from two runs; 'sciproof calibrate' measures them with more.")
+    if result.capture.exit_code != 0:
+        return EXIT_FAIL
+    return EXIT_OK
+
+
 def _run_calibrate(args: argparse.Namespace) -> int:
     report = calibrate(
         args.manifest,
@@ -698,6 +774,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_calibrate(args)
         if args.command_name == "badge":
             return _run_badge(args)
+        if args.command_name == "record":
+            return _run_record(args)
         if args.command_name == "check-policy":
             return _run_check_policy(args)
         if args.command_name == "list":
