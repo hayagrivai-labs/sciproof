@@ -113,6 +113,10 @@ accepted); they are `null` where undefined, and NaN or infinite values appear as
 `sciproof verify --format markdown` (or `Report.to_markdown()`) prints the same report as
 GitHub-flavoured Markdown: the verdict and reason, a table of checks, a table of numeric
 differences, warnings, and what was not checked. Text that comes from a manifest is escaped.
+Links, mentions, issue references, emoji shortcodes and emphasis in that text remain inert.
+Mentions, references and shortcode/URL colons include zero-width breaks to prevent GitHub's
+post-processing from reactivating them after decoding character entities. The rendered text is
+readable, but use the JSON report when copying exact original values.
 In GitHub Actions: `sciproof verify baseline.sciproof.json --format markdown >> "$GITHUB_STEP_SUMMARY"`.
 
 For a directory, the digest fields hold the tree digests and the evidence adds

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from html import unescape
 
 import pytest
 
@@ -156,19 +157,94 @@ def test_markdown_escapes_everything_that_comes_from_a_manifest():
     assert "&lt;script&gt;" in text
     assert "[link](http://evil)" not in text  # brackets are escaped, so it is not a link
     assert "a\\|b" in text
-    assert "a\\nb \\| c" in text  # the line break is shown as \n, never rendered
+    assert "a\\\\nb \\| c" in text  # the rendered line break stays literal \n
     for line in text.splitlines():  # no check can break out of its table row
         assert line.count("|") - line.count("\\|") in (0, 4)
 
 
 def test_escape_and_number_helpers():
-    assert escape("a|b\nc") == "a\\|b\\nc"
+    assert escape("a|b\nc") == "a\\|b\\\\nc"
     assert escape("a  b   c") == "a b c"  # runs of blanks collapse
     assert escape("x" * 1000, limit=10).startswith("xxxxxxxxxx")
     assert number(None) == "-"
     assert number(0.1 + 0.2) == "0.3"
     assert number(True) == "True"
     assert number(12345678.9) == "1.23457e+07"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "https://example.com/x",
+        "www.example.com/x",
+        "WWW.example.com/x",
+        "ftp://example.com/x",
+        "person@example.com",
+        "@octocat",
+        "#123",
+        ":tada:",
+        "**strong**",
+        "_emphasis_",
+        "~~removed~~",
+    ],
+)
+def test_untrusted_gfm_syntax_is_inert_but_keeps_its_visible_text(text):
+    escaped = escape(text)
+    assert text not in escaped
+    assert unescape(escaped).replace("\u200b", "") == text
+
+
+def test_mentions_references_and_emoji_have_breaks_after_entity_decoding():
+    # GitHub post-processes mentions/emoji after parsing character entities.
+    # Encoding only @ or : is insufficient; a zero-width break must remain.
+    decoded = unescape(escape("@octocat #123 :tada:"))
+    assert "@\u200boctocat" in decoded
+    assert "#\u200b123" in decoded
+    assert ":\u200btada:\u200b" in decoded
+
+
+@pytest.mark.parametrize("backslashes", [1, 2, 3])
+def test_original_backslashes_cannot_reactivate_relative_links(backslashes):
+    prefix = "\\" * backslashes
+    escaped = escape(f"{prefix}[details{prefix}](notes.md)")
+    # Preserve each original slash, then escape the bracket with an odd count.
+    protected = "\\" * (backslashes * 2 + 1)
+    assert escaped == f"{protected}[details{protected}](notes.md)"
+
+
+@pytest.mark.parametrize("backslashes", [1, 2, 3])
+def test_original_backslashes_and_table_pipes_are_both_preserved(backslashes):
+    escaped = escape("a" + "\\" * backslashes + "|b")
+    assert escaped == "a" + "\\" * (backslashes * 2 + 1) + "|b"
+
+
+def test_ordinary_filenames_and_numbers_are_unchanged():
+    assert escape("results.json 42 0.125") == "results.json 42 0.125"
+    assert unescape(escape("results_v2.json")).replace("\u200b", "") == "results_v2.json"
+
+
+def test_untrusted_gfm_is_escaped_in_every_report_text_field():
+    payload = "@octocat #123 :tada: https://example.com www.example.com **bold**"
+    report = Report(name=payload, rerun_requested=False)
+    report.add(Status.FAIL, payload, payload)
+    report.warnings.append(payload)
+    report.info.append(payload)
+    text = report_markdown(report)
+    assert text.count(escape(payload)) >= 5
+    assert payload not in text
+    assert ":x: FAIL" in text  # trusted status decorations are unchanged
+
+
+def test_cli_claim_text_is_inert_and_plain_verification_does_not_rerun(project, capsys):
+    payload = "see www.example.com and https://example.com cc @octocat #123 :tada:"
+    project.capture(claims=[("out/result.json", f'$.label == "{payload}"')])
+    assert project.runs() == 1
+    code = cli.main(["verify", "exp.sciproof.json", "--format", "markdown"])
+    text = capsys.readouterr().out
+    assert code == cli.EXIT_FAIL
+    assert escape(payload) in text
+    assert payload not in text
+    assert project.runs() == 1
 
 
 # ---------------------------------------------------------------- command line

@@ -6,6 +6,7 @@ it is escaped before it is put into a table: no HTML, no table breaks, no links.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any
 
 from sciproof.textutil import safe_text
@@ -15,22 +16,35 @@ if TYPE_CHECKING:
 
 _MARK = {"PASS": ":white_check_mark:", "FAIL": ":x:", "INCONCLUSIVE": ":grey_question:"}
 MAX_CELL = 300
+_ESCAPES = str.maketrans(
+    {
+        "\\": "\\\\",
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "|": "\\|",
+        "`": "&#96;",
+        "[": "\\[",
+        "]": "\\]",
+        "@": "&#64;&#8203;",
+        "#": "&#35;&#8203;",
+        "*": "&#42;",
+        "_": "&#95;",
+        "~": "&#126;",
+    }
+)
 
 
 def escape(text: object, limit: int = MAX_CELL) -> str:
     """Make ``text`` safe inside a Markdown table cell or list item."""
     cleaned = " ".join(safe_text(str(text), limit).split())
-    for char, replacement in (
-        ("&", "&amp;"),
-        ("<", "&lt;"),
-        (">", "&gt;"),
-        ("|", "\\|"),
-        ("`", "&#96;"),
-        ("[", "\\["),
-        ("]", "\\]"),
-    ):
-        cleaned = cleaned.replace(char, replacement)
-    return cleaned
+    # A single pass avoids escaping the entities we just inserted. GitHub
+    # resolves entities before processing mentions/references/emoji, so those
+    # also need a zero-width break; entity-only escaping is insufficient.
+    cleaned = cleaned.translate(_ESCAPES)
+    # Keep ordinary prose such as "scope: artifact integrity" unchanged.
+    cleaned = re.sub(r":(?!\s)", "&#58;&#8203;", cleaned)
+    return re.sub(r"www\.", lambda m: m.group()[:-1] + "&#46;", cleaned, flags=re.IGNORECASE)
 
 
 def number(value: Any) -> str:
