@@ -23,7 +23,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from sciproof.capture import DEFAULT_ATOL, DEFAULT_RTOL, CaptureResult, capture
+from sciproof.capture import (
+    DEFAULT_ATOL,
+    DEFAULT_MAX_LOG_BYTES,
+    DEFAULT_RTOL,
+    CaptureResult,
+    capture,
+)
 from sciproof.claims import claim_expression
 from sciproof.diffmanifests import DiffReport, diff_manifests
 from sciproof.errors import ConfirmationRequired, UsageError
@@ -55,6 +61,22 @@ class Declarations:
     claims: list[tuple[str, str]]
     note: str | None
     record_hardware: bool
+    max_log_bytes: int = DEFAULT_MAX_LOG_BYTES
+
+
+def log_limit_of(manifest: dict[str, Any]) -> int:
+    """The ``--max-log-bytes`` the capture used, read back from the recorded streams.
+
+    A stream that was cut shows the limit directly: the text that was kept is exactly that long
+    (a multi-byte character cut in half is stored as U+FFFD, so this is exact for ASCII output and
+    a close estimate otherwise). If nothing was cut the limit was at least as large as the longest
+    stream, so the default or that size is enough to give the same result.
+    """
+    streams = [manifest["execution"]["stdout"], manifest["execution"]["stderr"]]
+    cut = [len(s["text"].encode("utf-8")) for s in streams if s["truncated"]]
+    if cut:
+        return max(cut)
+    return max([DEFAULT_MAX_LOG_BYTES, *(s["size"] for s in streams)])
 
 
 def declarations_of(manifest: dict[str, Any]) -> Declarations:
@@ -79,6 +101,7 @@ def declarations_of(manifest: dict[str, Any]) -> Declarations:
         claims=[(c["output"], claim_expression(c)) for c in manifest.get("claims") or []],
         note=manifest.get("note"),
         record_hardware=bool(manifest["environment"].get("hardware")),
+        max_log_bytes=log_limit_of(manifest),
     )
 
 
@@ -179,6 +202,7 @@ def update_baseline(
                 rtol=declarations.rtol,
                 atol=declarations.atol,
                 timeout=timeout,
+                max_log_bytes=declarations.max_log_bytes,
                 force=True,
                 claims=declarations.claims,
                 note=note if note is not None else declarations.note,

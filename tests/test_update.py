@@ -105,6 +105,30 @@ def test_the_new_manifest_keeps_numeric_tolerance_and_hardware(project):
     assert "hardware" in data["environment"]
 
 
+@pytest.mark.parametrize("limit", [0, 2])
+def test_the_log_limit_survives_an_update(project, limit):
+    # --max-log-bytes 0 keeps a command's output out of the manifest; an update must not put it back
+    project.capture(max_log_bytes=limit)
+    before = json.loads(project.manifest.read_text())["execution"]["stdout"]
+    assert before["truncated"] and before["text"] == "done"[:limit]
+    update_baseline(project.manifest, assume_yes=True)
+    after = json.loads(project.manifest.read_text())["execution"]["stdout"]
+    assert after["truncated"] and after["text"] == before["text"]
+
+
+def test_an_update_keeps_the_default_when_no_log_was_cut(project):
+    project.capture()
+    data = json.loads(project.manifest.read_text())
+    assert declarations_of(data).max_log_bytes == 64 * 1024
+
+
+def test_a_long_uncut_log_does_not_lower_the_limit(project):
+    project.capture()
+    data = json.loads(project.manifest.read_text())
+    data["execution"]["stdout"]["size"] = 1_000_000  # recorded with a limit above the default
+    assert declarations_of(data).max_log_bytes == 1_000_000
+
+
 def test_the_note_can_be_replaced(project):
     project.capture(note="old")
     update_baseline(project.manifest, assume_yes=True, note="new")

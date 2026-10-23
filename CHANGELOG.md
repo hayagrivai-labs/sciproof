@@ -6,6 +6,8 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* `update` keeps the log limit of the manifest it replaces: a capture made with
+  `--max-log-bytes 0` no longer gets its stdout/stderr text back after an update (#87).
 * Policies can require a note (`manifest.require_note`) or a hardware record
   (`manifest.require_hardware`); missing records fail these checks.
 
