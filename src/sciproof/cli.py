@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from sciproof import __version__
+from sciproof.badge import render_badge
 from sciproof.calibrate import calibrate
 from sciproof.capture import DEFAULT_ATOL, DEFAULT_MAX_LOG_BYTES, DEFAULT_RTOL, capture
 from sciproof.diffmanifests import diff_manifests, format_diff_json
@@ -265,6 +266,25 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sig.add_argument("manifest", type=Path)
     sig.add_argument("--key", type=Path, required=True, metavar="KEY", help="private key file")
+
+    bad = sub.add_parser(
+        "badge",
+        help="verify a manifest and write a static SVG badge with the result",
+        description=(
+            "Verify MANIFEST (integrity only, or with --rerun) and write an SVG badge with the "
+            "verdict, whether the command was re-executed, and the date. The exit status is the "
+            "verdict's, like 'verify', and the badge is written whatever the verdict is. Run it "
+            "in the CI job that verifies; a badge written by hand proves nothing."
+        ),
+    )
+    bad.add_argument("manifest", type=Path)
+    bad.add_argument(
+        "-o", "--output", type=Path, default=Path("sciproof-badge.svg"), metavar="FILE"
+    )
+    bad.add_argument("--rerun", action="store_true", help="EXECUTE the recorded command again")
+    bad.add_argument("--yes", action="store_true", help="do not ask for confirmation (--rerun)")
+    bad.add_argument("--clean-env", action="store_true", help="with --rerun: minimal environment")
+    bad.add_argument("--timeout", type=float, default=3600.0, metavar="SECONDS")
 
     upd = sub.add_parser(
         "update",
@@ -580,6 +600,20 @@ def _run_update(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _run_badge(args: argparse.Namespace) -> int:
+    report = verify(
+        args.manifest,
+        rerun=args.rerun,
+        assume_yes=args.yes,
+        timeout=args.timeout,
+        confirm=_confirm if args.rerun and not args.yes else None,
+        clean_env=args.clean_env,
+    )
+    _write_user_file(args.output, render_badge(report.status, rerun=report.rerun_executed))
+    print(f"{report.status.value}: wrote {args.output}")
+    return _STATUS_EXIT[report.status]
+
+
 def _run_calibrate(args: argparse.Namespace) -> int:
     report = calibrate(
         args.manifest,
@@ -662,6 +696,8 @@ def main(argv: list[str] | None = None) -> int:
             return _run_update(args)
         if args.command_name == "calibrate":
             return _run_calibrate(args)
+        if args.command_name == "badge":
+            return _run_badge(args)
         if args.command_name == "check-policy":
             return _run_check_policy(args)
         if args.command_name == "list":

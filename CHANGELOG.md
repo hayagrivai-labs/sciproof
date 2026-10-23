@@ -6,6 +6,9 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* `sciproof badge MANIFEST -o FILE.svg` verifies a manifest and writes a static SVG badge with the
+  verdict, whether the command was re-executed, and the date; nothing from the manifest goes into
+  it. The exit status is the verdict's.
 * A mutation-fuzz test damages every field of a valid manifest and checks that no reader ends in
   a traceback (it finds all the crashes fixed in 0.3.2 when run against 0.3.1).
 * `capture --tolerance OUTPUT 'rtol=X atol=Y'` gives one numeric output its own tolerance (the other

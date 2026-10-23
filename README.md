@@ -161,6 +161,7 @@ sciproof verify  MANIFEST [--rerun] [--yes] [--strict-env] [--clean-env]
                  [--pass-env NAME]... [--timeout S] [--json]
 sciproof inspect MANIFEST
 sciproof diff    OLD NEW [--format text|json|markdown]
+sciproof badge   MANIFEST [-o FILE.svg] [--rerun --yes]
 sciproof update  MANIFEST [--yes] [--dry-run] [--note TEXT]
 sciproof calibrate MANIFEST [--runs N] [--yes] [--timeout S]
 sciproof check-policy FILE
