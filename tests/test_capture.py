@@ -289,3 +289,27 @@ def test_a_failed_capture_leaves_the_earlier_evidence_intact(project):
     assert project.manifest.read_text() == manifest_before
     assert not (project.root / "exp.sciproof.d.tmp").exists()
     assert _snapshot_files(project) == ["0-p.json"]
+
+
+def test_claim_on_missing_output_file(project):
+    with pytest.raises(CaptureError, match="the output file does not exist"):
+        project.capture(
+            name="test-run",
+            # Create a directory named 'out/custom.json'
+            argv=[sys.executable, "-c", "import os; os.makedirs('out/custom.json', exist_ok=True)"],
+            outputs=["out/custom.json"],
+            numeric_outputs=[],        # Clear default numeric outputs
+            claims=[("out/custom.json", "$.value >= 1")]
+        )
+
+    assert not project.manifest.exists()
+
+def test_duplicate_input_paths_are_rejected(project):
+    with pytest.raises(CaptureError, match="contains the same path more than once"):
+        project.capture(
+            name="test-dup",
+            argv=[sys.executable, "-c", "pass"],
+            inputs=["data.json", "data.json"], # Give the same input twice
+            outputs=[],
+            numeric_outputs=[]
+        )
