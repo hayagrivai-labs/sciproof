@@ -30,10 +30,13 @@ Equivalent command (commit it, or run it again later):
 2. **Run 2** (skipped by `--fast`), from the same starting state: the files that run 1 created
    are removed first. An output that is the same both times is declared. A `.json`, `.csv` or
    `.tsv` output that differs only in its numbers is declared with a tolerance that covers the
-   difference (ten times the spread, as in [`calibrate`](CALIBRATE.md)). **Any other output that
-   differs is not declared**, because an exact hash of it could never be verified (a log with a
-   timestamp, a file with a random value), and it is listed as `NOT declared` so that nothing is
-   silently left out.
+   difference (ten times the spread, as in [`calibrate`](CALIBRATE.md)) — unless that tolerance
+   would be `rtol >= 1`, which makes any number "equivalent" to any other and is not declared
+   either. **Any other output that differs is not declared**, because an exact hash of it could
+   never be verified (a log with a timestamp, a file with a random value), and it is listed as
+   `NOT declared` so that nothing is silently left out. A file the command both *read* and
+   *wrote* (a cache, a counter, a state file) is never declared as an output either: it is state,
+   not a result, and the command cannot be run again from a clean tree as it is.
 3. **Run 3** is the real capture, with those declarations.
 
 So the command runs three times (two with `--fast`, which assumes every output is stable). Plan
@@ -50,7 +53,8 @@ on another machine gets the tolerance. Everything else is compared by hash.
   a command that is not run by Python (a shell script, `Rscript`, `julia`) no input is detected at
   all and `record` says so: add them with `--input`.
 * A file that existed before and was rewritten cannot be restored between runs. It is recorded as
-  an output, but its starting state is whatever run 1 left.
+  an output, but its starting state is whatever run 1 left — unless the command also read it, in
+  which case it is not declared at all (see above), and its state is still whatever run 1 left.
 * The tolerances come from two runs. Use [`calibrate`](CALIBRATE.md) to measure with more.
 * More than 500 inputs or outputs is an error: declare a directory with `capture --input DIR`.
 

@@ -17,7 +17,10 @@ running the command, and then captures it with what it found:
 
 So the command runs three times (twice with ``--fast`` skipping the second). Files that the
 command created are removed between the runs so that each run starts from the same state; a file
-that existed before and was rewritten cannot be restored and is recorded as an output.
+that existed before and was rewritten cannot be restored and is recorded as an output -- unless the
+command also read it, in which case it is state, not a result, and is not declared at all. A
+numeric output whose tolerance would have to be ``rtol >= 1`` to cover its spread is not declared
+either: that large a tolerance makes any number "equivalent" to any other.
 
 This finds what Python code opened. Reads by C extensions through their own handles, by other
 programs and over the network are invisible, and for a command that is not Python no input can
@@ -65,6 +68,7 @@ MAX_SCANNED_FILES = 50_000
 MAX_DECLARED = 500
 DEFAULT_RTOL = 1e-9
 SAFETY_FACTOR = 10
+MAX_RTOL = 1.0  # at or above this, any number is "equivalent" to any other: not a stable output
 NUMERIC_SUFFIXES = (".json", ".csv", ".tsv")
 
 
@@ -199,8 +203,18 @@ def record(
     first_leaves = {p: _leaves(base / p) for p in written}
     _remove_created(base, created)
 
+    read_and_written = sorted(set(written) & set(found.inside))
+    written = [p for p in written if p not in read_and_written]
+
     notes: list[str] = []
     excluded: list[tuple[str, str]] = []
+    for relative in read_and_written:
+        excluded.append((relative, "read and written by the command: it is state, not a result"))
+    if read_and_written:
+        notes.append(
+            "the command is not reproducible from a clean tree as it is: it reads and rewrites "
+            + ", ".join(read_and_written)
+        )
     second_digest: dict[str, str] = {}
     second_leaves: dict[str, list[Leaf] | None] = {}
     if not fast:
@@ -234,13 +248,18 @@ def record(
             )
         else:
             _, max_rel, _, problem = _spread([parsed, second_leaves[relative] or []], 0.0, 0.0)
+            rtol = max(DEFAULT_RTOL, _round_up(max_rel * SAFETY_FACTOR))
             if problem:
                 excluded.append((relative, f"differs between two identical runs: {problem}"))
+            elif rtol >= MAX_RTOL:
+                message = (
+                    "varies too much between two identical runs for a meaningful tolerance "
+                    f"(rtol would be {rtol:g})"
+                )
+                excluded.append((relative, message))
             else:
                 numeric.append(relative)
-                tolerances[relative] = {
-                    "rtol": max(DEFAULT_RTOL, _round_up(max_rel * SAFETY_FACTOR))
-                }
+                tolerances[relative] = {"rtol": rtol}
 
     declared_outputs = set(exact) | set(numeric)
     never_inputs = set(first_digest) | set(second_digest)

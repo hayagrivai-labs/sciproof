@@ -25,6 +25,8 @@ pathlib.Path("out/stable.txt").write_text("stable")
 json.dump({"v": data["x"] * 2}, open("out/stable.json", "w"))
 if os.environ.get("NOISE"):
     json.dump({"loss": 1.0 + n * 1e-7, "label": "ok"}, open("out/noisy.json", "w"))
+if os.environ.get("JUMP"):
+    json.dump({"v": n % 2}, open("out/jump.json", "w"))
 if os.environ.get("RANDOM_TEXT"):
     pathlib.Path("out/random.txt").write_text(str(random.random()))
 if os.environ.get("RANDOM_JSON"):
@@ -43,7 +45,7 @@ def lab(tmp_path, monkeypatch):
     (root / "unrelated.txt").write_text("not read")
     counter = tmp_path / "count.txt"
     monkeypatch.setenv("COUNT_FILE", str(counter))
-    for name in ("NOISE", "RANDOM_TEXT", "RANDOM_JSON", "ONLY_FIRST"):
+    for name in ("NOISE", "JUMP", "RANDOM_TEXT", "RANDOM_JSON", "ONLY_FIRST"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.chdir(root)
 
@@ -97,6 +99,20 @@ def test_a_numeric_output_that_varies_gets_a_tolerance_that_covers_it(lab, monke
     assert "--tolerance out/noisy.json" in result.command_line
 
 
+def test_a_numeric_output_that_needs_rtol_1_or_more_is_not_declared(lab, monkeypatch):
+    # out/jump.json's value jumps between 0 and 1 across the two runs; ten times that spread
+    # is rtol=10, which would make any number "equivalent" to any other (issue #123).
+    monkeypatch.setenv("JUMP", "1")
+    result = lab.go()
+    assert "out/jump.json" not in result.numeric
+    excluded = dict(result.excluded)
+    assert "out/jump.json" in excluded
+    assert "meaningful tolerance" in excluded["out/jump.json"]
+    assert all(settings["rtol"] < 1 for settings in result.tolerances.values())
+    manifest = load_manifest(result.capture.manifest_path)
+    assert "out/jump.json" not in [o["path"] for o in manifest["outputs"]]
+
+
 def test_an_output_that_differs_between_identical_runs_is_not_declared(lab, monkeypatch):
     monkeypatch.setenv("RANDOM_TEXT", "1")
     result = lab.go()
@@ -118,6 +134,28 @@ def test_an_output_written_by_one_run_only_is_not_declared(lab, monkeypatch):
     result = lab.go()
     assert [p for p, _ in result.excluded] == ["out/first.txt"]
     assert "not written by the second run" in result.excluded[0][1]
+
+
+def test_a_file_read_and_written_by_the_command_is_not_declared(lab):
+    # cache.json is state: the command reads it, increments a counter and writes it back, so
+    # it cannot be a reproducible output (issue #123).
+    (lab.path / "cache.json").write_text('{"n": 0}')
+    script = (
+        "import json\n"
+        "c = json.load(open('cache.json'))\n"
+        "c['n'] += 1\n"
+        "json.dump(c, open('cache.json', 'w'))\n"
+        "json.dump({'v': 1}, open('out.json', 'w'))\n"
+    )
+    result = record(name="e", argv=[sys.executable, "-c", script], base=lab.path)
+    excluded = dict(result.excluded)
+    assert "cache.json" in excluded, (
+        "cache.json was read and written by the command but was not excluded; it was declared "
+        f"as numeric={result.numeric!r} with tolerances={result.tolerances!r}"
+    )
+    assert "read and written" in excluded["cache.json"]
+    assert "cache.json" not in result.inputs
+    assert "cache.json" not in result.numeric
 
 
 def test_fast_skips_the_second_run_and_says_so(lab):

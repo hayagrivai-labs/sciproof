@@ -15,7 +15,9 @@ All notable changes are listed here. The format follows
 * `sciproof record --name NAME -- COMMAND` captures a command without declaring any file: the inputs
   (files Python read) and outputs (files created or changed) are detected, a second run decides
   which outputs are exact, numeric with a tolerance, or not declarable, and the equivalent
-  `capture` command is printed.
+  `capture` command is printed. A file the command both reads and rewrites (a cache, a counter) is
+  state, not a result, and is not declared; a numeric output whose spread would need `rtol >= 1`
+  is not declared either, since that tolerance makes any number "equivalent" to any other (#123).
 * A mutation-fuzz test damages every field of a valid manifest and checks that no reader ends in
   a traceback (it finds all the crashes fixed in 0.3.2 when run against 0.3.1).
 * `capture --tolerance OUTPUT 'rtol=X atol=Y'` gives one numeric output its own tolerance (the other
