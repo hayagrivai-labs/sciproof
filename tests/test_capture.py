@@ -128,6 +128,14 @@ def test_missing_input_is_an_error(project):
         project.capture(inputs=["data.json", "does-not-exist.csv"])
 
 
+@pytest.mark.parametrize("field", ["inputs", "outputs"])
+def test_path_outside_workspace_is_rejected(project, field):
+    with pytest.raises(CaptureError, match="outside"):
+        project.capture(argv=[sys.executable, "-c", "pass"], **{field: ["../outside.txt"]})
+    assert not project.manifest.exists()
+    assert project.runs() == 0  # the path is rejected before the command runs
+
+
 def test_a_directory_as_input_is_recorded_as_a_tree(project):
     """Directories became supported in schema 1.1 (see tests/test_directories.py)."""
     (project.root / "folder").mkdir()
