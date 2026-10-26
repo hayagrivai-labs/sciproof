@@ -298,18 +298,19 @@ def test_claim_on_missing_output_file(project):
             # Create a directory named 'out/custom.json'
             argv=[sys.executable, "-c", "import os; os.makedirs('out/custom.json', exist_ok=True)"],
             outputs=["out/custom.json"],
-            numeric_outputs=[],        # Clear default numeric outputs
-            claims=[("out/custom.json", "$.value >= 1")]
+            numeric_outputs=[],  # Clear default numeric outputs
+            claims=[("out/custom.json", "$.value >= 1")],
         )
 
     assert not project.manifest.exists()
+
 
 def test_duplicate_input_paths_are_rejected(project):
     with pytest.raises(CaptureError, match="contains the same path more than once"):
         project.capture(
             name="test-dup",
             argv=[sys.executable, "-c", "pass"],
-            inputs=["data.json", "data.json"], # Give the same input twice
+            inputs=["data.json", "data.json"],  # Give the same input twice
             outputs=[],
-            numeric_outputs=[]
+            numeric_outputs=[],
         )
