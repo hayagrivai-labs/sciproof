@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import json
+from pathlib import Path
 
 import pytest
 
@@ -192,3 +194,41 @@ def test_unsupported_file_format_message(tmp_path):
         match=r"numeric comparison supports \.json, \.csv, \.tsv, \.npy files, got 'test\.unknown'",
     ):
         load_numeric(f)
+
+
+def test_file_exceeding_max_numeric_bytes_raises(tmp_path, monkeypatch):
+    target = tmp_path / "huge.json"
+    target.write_text('{"a": 1}')
+
+    real_stat = Path.stat
+
+    class MockStat:
+        def __init__(self, stat_result):
+            self._stat = stat_result
+            self.st_size = 65 * 1024 * 1024
+
+        def __getattr__(self, name):
+            return getattr(self._stat, name)
+
+    def mock_stat(self, *args, **kwargs):
+        # Return the huge size only for our target file, normal stat otherwise
+        if self == target:
+            return MockStat(real_stat(self))
+        return real_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", mock_stat)
+
+    with pytest.raises(NumericFormatError, match="larger than the numeric comparison limit"):
+        load_numeric(target)
+
+
+def test_csv_parsing_failure_raises_numeric_format_error(tmp_path, monkeypatch):
+    target = tmp_path / "any.csv"
+    target.write_text("a,b\n1,2\n")
+
+    def mock_reader(*args, **kwargs):
+        raise csv.Error("unexpected end of data")
+
+    monkeypatch.setattr(csv, "reader", mock_reader)
+    with pytest.raises(NumericFormatError, match="is not valid CSV"):
+        load_numeric(target)
