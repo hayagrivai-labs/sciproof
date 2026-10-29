@@ -157,6 +157,27 @@ unchanged, so the step still fails on `FAIL` or `INCONCLUSIVE` and the summary i
 To see what changed between the committed baseline and a fresh capture, use
 `sciproof diff baseline.sciproof.json candidate.sciproof.json --format markdown`.
 
+### Quiet mode for concise CI logs
+
+Use `-q` or `--quiet` when you want a concise verification result without decorative headers.
+The final verdict is printed to stdout, while failure diagnostics are sent to stderr.
+
+Add this step to a GitHub Actions workflow:
+
+```yaml
+      - name: Verify the evidence (quiet mode)
+        run: sciproof verify --quiet baseline.sciproof.json
+```
+
+For a local check, use:
+
+```bash
+sciproof verify --quiet baseline.sciproof.json
+```
+
+Quiet mode changes the output, not the verification result or failure status. See
+[Exit codes](EXIT_CODES.md) for the meaning of each status code.
+
 ## The GitHub Action
 
 The repository is also a composite action that does the above for you: it installs SciProof (or uses

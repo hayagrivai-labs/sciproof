@@ -94,6 +94,33 @@ recorded and the new outputs. `verify --json` and the exit codes make it easy to
 
 **Who.** Model evaluation teams, benchmark maintainers, AI tooling developers.
 
+## 7. Concise verification in CI
+
+**Problem.** CI logs contain more output than needed when a workflow only needs a clear verification verdict, while failure diagnostics must remain available for debugging.
+
+**How SciProof helps.** Use `-q` or `--quiet` with `sciproof verify` to suppress decorative headers and print a concise verdict to stdout. Failure diagnostics are sent to stderr, and the command's exit code is preserved.
+
+For example, a GitHub Actions step can run:
+
+```yaml
+      - name: Verify the evidence (quiet mode)
+        run: sciproof verify --quiet baseline.sciproof.json
+```
+
+For a shell script that checks multiple manifests, use:
+
+```bash
+for manifest in *.sciproof.json; do
+    [ -e "$manifest" ] || continue
+    echo "Checking $manifest"
+    sciproof verify --quiet "$manifest" || exit $?
+done
+```
+
+The loop identifies each manifest and stops when a verification command returns a nonzero exit code. Quiet mode changes the output, not the verification result. Failure diagnostics remain available on stderr, and the exit status can be used by CI to determine whether the job should fail.
+
+These examples perform integrity verification; they do not execute the experiment recorded in a manifest. See [Using SciProof in CI](CI.md) and [Exit codes](EXIT_CODES.md) for more details.
+
 ## Where SciProof fits among other tools
 
 Tools such as DVC already cover parts of experiment tracking and reproducibility. SciProof does
