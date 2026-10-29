@@ -133,6 +133,54 @@ def test_too_many_files_are_refused(tmp_path):
     assert len(scan_tree(tmp_path, limit=3)) == 3
 
 
+def test_unreadable_directory_raises_tree_error(tmp_path, monkeypatch):
+    def raise_permission_error(*args, **kwargs):
+        raise PermissionError("access denied")
+
+    monkeypatch.setattr(os, "scandir", raise_permission_error)
+
+    with pytest.raises(TreeError, match="cannot read"):
+        scan_tree(tmp_path)
+
+
+def test_unreadable_file_raises_tree_error(tmp_path, monkeypatch):
+    (tmp_path / "file.txt").write_text("content")
+
+    def raise_os_error(*args, **kwargs):
+        raise OSError("disk read error")
+
+    monkeypatch.setattr("sciproof.treehash.sha256_file", raise_os_error)
+
+    with pytest.raises(TreeError, match="cannot read"):
+        scan_tree(tmp_path)
+
+
+def test_non_regular_files_and_directories_raise_tree_error(tmp_path, monkeypatch):
+    class SpecialEntry:
+        name = "special"
+
+        def is_symlink(self):
+            return False
+
+        def is_dir(self, *, follow_symlinks=True):
+            return False
+
+        def is_file(self, *, follow_symlinks=True):
+            return False
+
+    class FakeScandir:
+        def __enter__(self):
+            return iter([SpecialEntry()])
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(os, "scandir", lambda *args, **kwargs: FakeScandir())
+
+    with pytest.raises(TreeError, match="not a regular file or directory"):
+        scan_tree(tmp_path)
+
+
 def test_symbolic_links_inside_a_tree_are_refused(tmp_path):
     if not _can_symlink(tmp_path):
         pytest.skip("symbolic links are not available here")
