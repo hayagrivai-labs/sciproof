@@ -112,6 +112,17 @@ def test_a_missing_directory_is_a_usage_error(tmp_path, capsys):
     assert cli.main(["list", str(tmp_path / "nope")]) == cli.EXIT_ERROR
 
 
+def test_too_many_manifests_raise_usage_error(project, monkeypatch):
+    monkeypatch.setattr("sciproof.ledger.MAX_MANIFESTS", 2)
+
+    project.capture(name="first")
+    project.capture(name="second")
+    project.capture(name="third")
+
+    with pytest.raises(UsageError, match="more than 2 manifests"):
+        list_manifests(project.root)
+
+
 def test_json_and_markdown_output(project, capsys):
     project.capture(name="a")
     data = json.loads(format_json(list_manifests(project.root, check=True), True))
