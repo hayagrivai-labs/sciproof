@@ -12,7 +12,7 @@ from sciproof import cli
 from sciproof.errors import UsageError
 from sciproof.markdown import escape, number, report_markdown
 from sciproof.numeric import Difference, compare, compare_detailed, load_numeric
-from sciproof.verify import Report, Status, report_to_dict, verify
+from sciproof.verify import Check, Report, Status, report_to_dict, verify
 
 
 def _leaves(tmp_path, name, text):
@@ -269,3 +269,27 @@ def test_cli_json_flag_is_still_an_alias_and_conflicts_are_refused(project, caps
     assert "conflicts" in capsys.readouterr().err
     with pytest.raises(UsageError):
         cli._report_format(type("A", (), {"json": True, "format": "markdown"})())
+
+
+def test_numeric_table_summary_row():
+    evidence = {
+        "kind": "rerun_output_numeric",
+        "path": "out/result.json",
+        "rtol": 1e-6,
+        "atol": 0.0,
+        "difference_details": [{"kind": "summary", "message": "more than 10 differences"}],
+    }
+    report = Report(
+        name="exp",
+        rerun_requested=False,
+        checks=[Check(Status.FAIL, "output out/result.json", "diff", evidence=evidence)],
+    )
+    md = report_markdown(report)
+    assert "| more than 10 differences | | | | | |" in md
+
+
+def test_number_fallback_escapes_non_primitive():
+    result = number(["custom"])
+    assert isinstance(result, str)
+    assert "custom" in result
+    assert result.startswith("\\[")
