@@ -366,3 +366,35 @@ def test_numeric_output_cannot_be_a_directory(project):
             outputs=[],
         )
     assert not project.manifest.exists()
+
+
+def test_claim_with_unsafe_path_is_rejected_before_execution(project):
+    with pytest.raises(CaptureError, match="outside"):
+        project.capture(claims=[("../outside.txt", "$.value >= 1")])
+    assert project.runs() == 0
+    assert not project.manifest.exists()
+
+
+def test_tolerance_with_unsafe_path_is_rejected_before_execution(project):
+    with pytest.raises(CaptureError, match="outside"):
+        project.capture(tolerances={"../outside.json": {"rtol": 1e-6}})
+    assert project.runs() == 0
+    assert not project.manifest.exists()
+
+
+def test_nested_output_directory_and_file_are_rejected(project):
+    command = (
+        "from pathlib import Path; "
+        "Path('data').mkdir(); "
+        "Path('data/result.csv').write_text('value\\n1\\n')"
+    )
+    with pytest.raises(CaptureError, match="nested|inside|overlap"):
+        project.capture(
+            name="nested-outputs",
+            argv=[sys.executable, "-c", command],
+            inputs=[],
+            outputs=["data", "data/result.csv"],
+            numeric_outputs=[],
+        )
+    assert not (project.root / "nested-outputs.sciproof.json").exists()
+    assert project.runs() == 1
