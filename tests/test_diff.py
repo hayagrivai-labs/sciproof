@@ -315,6 +315,93 @@ def test_corrupted_numeric_snapshot_reports_numeric_not_comparable(project, pair
     assert out.evidence["numeric"]["comparable"] is False
 
 
+# ---------------------------------------------------------------- output state transitions and unsafe snapshots
+
+
+@pytest.mark.parametrize(
+    ("old_present", "new_present", "expected"),
+    [
+        (True, False, "was present, is now absent"),
+        (False, True, "was absent, is now present"),
+    ],
+)
+def test_output_presence_changes_are_reported(old_present, new_present, tmp_path):
+    from sciproof.diffmanifests import DiffReport, _diff_artifacts
+
+    output = {
+        "path": "result.txt",
+        "kind": "file",
+        "present": old_present,
+        "sha256": "a" * 64,
+        "size": 1,
+        "compare": {"mode": "exact"},
+    }
+    changed = {**output, "present": new_present, "sha256": "b" * 64}
+    old = {"outputs": [output]}
+    new = {"outputs": [changed]}
+    report = DiffReport("old", "new", "old.json", "new.json")
+
+    _diff_artifacts("outputs", old, new, tmp_path, tmp_path, report)
+
+    (change,) = report.changes
+    assert change.subject == "result.txt"
+    assert change.kind == "changed"
+    assert change.message == expected
+
+
+def test_directory_output_tree_changes_are_reported(tmp_path):
+    from sciproof.diffmanifests import DiffReport, _diff_artifacts
+
+    old = {
+        "outputs": [
+            {
+                "path": "results",
+                "kind": "directory",
+                "present": True,
+                "sha256": "a" * 64,
+                "size": 2,
+                "files": [{"path": "old.txt", "sha256": "1" * 64, "size": 1}],
+                "compare": {"mode": "exact"},
+            }
+        ]
+    }
+    new = {
+        "outputs": [
+            {
+                "path": "results",
+                "kind": "directory",
+                "present": True,
+                "sha256": "b" * 64,
+                "size": 2,
+                "files": [{"path": "new.txt", "sha256": "2" * 64, "size": 1}],
+                "compare": {"mode": "exact"},
+            }
+        ]
+    }
+    report = DiffReport("old", "new", "old.json", "new.json")
+
+    _diff_artifacts("outputs", old, new, tmp_path, tmp_path, report)
+
+    (change,) = report.changes
+    assert change.subject == "results"
+    assert "tree changed:" in change.message
+    assert change.evidence["tree"]["added"] == ["new.txt"]
+    assert change.evidence["tree"]["removed"] == ["old.txt"]
+
+
+def test_unsafe_snapshot_path_is_reported_without_reading_outside_base(tmp_path):
+    from pathlib import Path
+
+    from sciproof.diffmanifests import _snapshot
+
+    item = {"compare": {"snapshot": {"path": "../escape.json", "sha256": "0" * 64}}}
+
+    snapshot, reason = _snapshot(Path(tmp_path), item)
+
+    assert snapshot is None
+    assert reason is not None and "unsafe snapshot path" in reason
+
+
 # ---------------------------------------------------------------- output formats
 
 
