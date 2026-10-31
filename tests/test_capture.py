@@ -366,3 +366,29 @@ def test_numeric_output_cannot_be_a_directory(project):
             outputs=[],
         )
     assert not project.manifest.exists()
+
+
+def test_capture_claims_unsafe_path_raises(project):
+    with pytest.raises(CaptureError):
+        project.capture(claims=[("../outside.txt", "$.value >= 1")])
+
+
+def test_capture_tolerances_unsafe_path_raises(project):
+    with pytest.raises(CaptureError):
+        project.capture(tolerances={"../outside.json": {"rtol": 1e-6}})
+
+
+def test_capture_nested_outputs_raises(project):
+    # Pre-create the nested output before capture: an inline -c script
+    # containing a newline broke cross-platform CLI argument escaping in CI,
+    # so the directory was never created and check_nesting was bypassed.
+    (project.root / "data").mkdir()
+    (project.root / "data" / "result.csv").write_text("1,2\n")
+    with pytest.raises(CaptureError, match="lies inside the declared directory"):
+        project.capture(
+            name="nest",
+            argv=[sys.executable, "-c", "pass"],
+            inputs=["data.json"],
+            outputs=["data", "data/result.csv"],
+            numeric_outputs=[],
+        )
