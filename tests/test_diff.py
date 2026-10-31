@@ -418,3 +418,25 @@ def test_the_python_api_exports_the_diff(project, pair):
     report = sciproof.diff_manifests(old, new)
     assert isinstance(report, sciproof.DiffReport)
     assert report.identical
+
+
+def test_output_present_to_absent_is_reported(project, pair):
+    old, new = pair()
+    _edit(new, lambda d: [o.update(present=False, sha256=None, size=0) for o in d["outputs"] if o["path"] == "out/exact.txt"])
+    change = next(c for c in diff_manifests(old, new).changes if c.subject == "out/exact.txt")
+    assert "was present, is now absent" in change.message
+
+
+def test_output_absent_to_present_is_reported(project, pair):
+    old, new = pair()
+    _edit(old, lambda d: [o.update(present=False, sha256=None, size=0) for o in d["outputs"] if o["path"] == "out/exact.txt"])
+    change = next(c for c in diff_manifests(old, new).changes if c.subject == "out/exact.txt")
+    assert "was absent, is now present" in change.message
+
+
+def test_snapshot_unsafe_path(tmp_path):
+    from sciproof.diffmanifests import _snapshot
+    item = {"compare": {"snapshot": {"path": "../escape.json", "sha256": "0" * 64}}}
+    path, reason = _snapshot(tmp_path, item)
+    assert path is None
+    assert reason is not None and "unsafe snapshot path" in reason
