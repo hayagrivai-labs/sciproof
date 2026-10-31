@@ -7,6 +7,7 @@ import sys
 import pytest
 
 from sciproof.capture import CaptureError, capture
+from sciproof.errors import UnsafePathError
 from sciproof.paths import expand_glob, has_glob_magic
 
 
@@ -77,3 +78,20 @@ def test_capture_with_output_glob(project):
     out_paths = [out["path"] for out in res.manifest["outputs"]]
     assert "out_glob/res1.txt" in out_paths
     assert "out_glob/res2.txt" in out_paths
+
+
+@pytest.mark.parametrize("pattern", ["/etc/*.conf", "/root/*"])
+def test_expand_glob_absolute_pattern_raises(tmp_path, pattern):
+    with pytest.raises(UnsafePathError, match="is absolute"):
+        expand_glob(tmp_path, pattern)
+
+
+@pytest.mark.parametrize("pattern", ["../sibling/*.csv", "a/../b.txt"])
+def test_expand_glob_dotdot_pattern_raises(tmp_path, pattern):
+    with pytest.raises(UnsafePathError, match="'\\.\\.' components"):
+        expand_glob(tmp_path, pattern)
+
+
+def test_expand_glob_empty_segment_raises(tmp_path):
+    with pytest.raises(UnsafePathError):
+        expand_glob(tmp_path, "dir//*.txt")
