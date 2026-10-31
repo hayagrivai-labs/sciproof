@@ -235,3 +235,23 @@ def test_csv_parsing_failure_raises_numeric_format_error(tmp_path, monkeypatch):
     monkeypatch.setattr(csv, "reader", mock_reader)
     with pytest.raises(NumericFormatError, match="is not valid CSV"):
         load_numeric(target)
+
+
+def test_bin_extension_raises(tmp_path):
+    f = tmp_path / "model.bin"
+    f.write_bytes(b"\x00\x01\x02")
+    with pytest.raises(NumericFormatError, match=r"got 'model\.bin'"):
+        load_numeric(f)
+
+
+def test_file_without_extension_raises(tmp_path):
+    f = tmp_path / "data"
+    f.write_text("1,2,3\n")
+    with pytest.raises(NumericFormatError, match=r"got 'data'"):
+        load_numeric(f)
+
+
+def test_non_utf8_tsv_file_raises(tmp_path):
+    (tmp_path / "a.tsv").write_bytes(b"\xff\xfe1\t2")
+    with pytest.raises(NumericFormatError):
+        load_numeric(tmp_path / "a.tsv")
