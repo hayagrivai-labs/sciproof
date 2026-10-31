@@ -106,3 +106,29 @@ def test_format_ro_crate_helper(project):
     formatted = format_ro_crate(project.manifest)
     assert formatted.endswith("\n")
     assert json.loads(formatted)["@context"] == RO_CRATE_CONTEXT
+
+
+def test_ro_crate_directory_inputs_and_outputs(project):
+    (project.root / "inputs").mkdir()
+    (project.root / "inputs" / "x.csv").write_bytes(b"1,2\n")
+    script = (
+        "import pathlib; d = pathlib.Path('results'); d.mkdir(exist_ok=True); "
+        "(d / 'a.txt').write_text('alpha'); (d / 'sub').mkdir(exist_ok=True); "
+        "(d / 'sub' / 'b.txt').write_text('beta')"
+    )
+    project.capture(
+        name="dirs",
+        argv=[sys.executable, "-c", script],
+        inputs=["data.json", "inputs"],
+        outputs=["results"],
+        numeric_outputs=[],
+    )
+    crate = to_ro_crate(project.root / "dirs.sciproof.json")
+    graph = {entity["@id"]: entity for entity in crate["@graph"]}
+    action = graph["#run"]
+    assert graph["inputs/"]["@type"] == "Dataset"
+    assert graph["inputs/"]["@id"].endswith("/")
+    assert graph["results/"]["@type"] == "Dataset"
+    assert graph["results/"]["@id"].endswith("/")
+    assert {"@id": "inputs/"} in action["object"]
+    assert {"@id": "results/"} in action["result"]
