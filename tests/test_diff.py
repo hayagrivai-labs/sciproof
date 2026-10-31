@@ -24,6 +24,12 @@ def _edit(path, mutate):
     path.write_text(json.dumps(data))
 
 
+def _mark_output_absent(data):
+    for output in data["outputs"]:
+        if output["path"] == "out/exact.txt":
+            output.update(present=False, sha256=None, size=0)
+
+
 @pytest.fixture
 def pair(project):
     """Capture ``a``, then a second run ``b`` with whatever the test changed in between."""
@@ -422,14 +428,14 @@ def test_the_python_api_exports_the_diff(project, pair):
 
 def test_output_present_to_absent_is_reported(project, pair):
     old, new = pair()
-    _edit(new, lambda d: [o.update(present=False, sha256=None, size=0) for o in d["outputs"] if o["path"] == "out/exact.txt"])
+    _edit(new, _mark_output_absent)
     change = next(c for c in diff_manifests(old, new).changes if c.subject == "out/exact.txt")
     assert "was present, is now absent" in change.message
 
 
 def test_output_absent_to_present_is_reported(project, pair):
     old, new = pair()
-    _edit(old, lambda d: [o.update(present=False, sha256=None, size=0) for o in d["outputs"] if o["path"] == "out/exact.txt"])
+    _edit(old, _mark_output_absent)
     change = next(c for c in diff_manifests(old, new).changes if c.subject == "out/exact.txt")
     assert "was absent, is now present" in change.message
 
