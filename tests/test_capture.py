@@ -379,14 +379,15 @@ def test_capture_tolerances_unsafe_path_raises(project):
 
 
 def test_capture_nested_outputs_raises(project):
-    script = (
-        "import pathlib; p = pathlib.Path('data'); p.mkdir(exist_ok=True); "
-        "(p / 'result.csv').write_text('1,2\n')"
-    )
+    # Pre-create the nested output before capture: an inline -c script
+    # containing a newline broke cross-platform CLI argument escaping in CI,
+    # so the directory was never created and check_nesting was bypassed.
+    (project.root / "data").mkdir()
+    (project.root / "data" / "result.csv").write_text("1,2\n")
     with pytest.raises(CaptureError, match="lies inside the declared directory"):
         project.capture(
             name="nest",
-            argv=[sys.executable, "-c", script],
+            argv=[sys.executable, "-c", "pass"],
             inputs=["data.json"],
             outputs=["data", "data/result.csv"],
             numeric_outputs=[],
