@@ -366,3 +366,28 @@ def test_numeric_output_cannot_be_a_directory(project):
             outputs=[],
         )
     assert not project.manifest.exists()
+
+
+def test_capture_claims_unsafe_path_raises(project):
+    with pytest.raises(CaptureError):
+        project.capture(claims=[("../outside.txt", "$.value >= 1")])
+
+
+def test_capture_tolerances_unsafe_path_raises(project):
+    with pytest.raises(CaptureError):
+        project.capture(tolerances={"../outside.json": {"rtol": 1e-6}})
+
+
+def test_capture_nested_outputs_raises(project):
+    script = (
+        "import pathlib; p = pathlib.Path('data'); p.mkdir(exist_ok=True); "
+        "(p / 'result.csv').write_text('1,2\n')"
+    )
+    with pytest.raises(CaptureError, match="lies inside the declared directory"):
+        project.capture(
+            name="nest",
+            argv=[sys.executable, "-c", script],
+            inputs=["data.json"],
+            outputs=["data", "data/result.csv"],
+            numeric_outputs=[],
+        )
