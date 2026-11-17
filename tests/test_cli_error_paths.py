@@ -203,3 +203,19 @@ def test_cli_unreadable_manifest_is_clean_when_permissions_are_supported(
         assert _snapshot(outside) == {"sentinel": b"unchanged"}
     finally:
         unreadable.chmod(0o600)
+
+
+@pytest.mark.parametrize("command", ["verify", "badge"])
+def test_cli_rerun_timeout_over_the_limit_is_a_usage_error_and_runs_nothing(
+    cli_error_project: tuple[Path, Path], command: str
+) -> None:
+    root, outside = cli_error_project
+    before = _snapshot(root)
+    completed = _run(
+        root, [command, "valid.sciproof.json", "--rerun", "--yes", "--timeout", "1e10"]
+    )
+    assert completed.returncode == 3
+    assert "at most 2147484 seconds" in completed.stderr
+    assert "Traceback" not in completed.stderr
+    assert _snapshot(root) == before
+    assert _snapshot(outside) == {"sentinel": b"unchanged"}
