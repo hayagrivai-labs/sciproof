@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* **HTML report tolerance inspector starts from the recorded tolerances:** the rtol/atol sliders are initialised from the manifest (including `atol = 0`, now a representable stop), and a difference with no numeric distance (changed string, NaN, inf vs finite) is shown as exceeded instead of an empty meter (#314).
 * **Robust signature verification (check_signature):** Gracefully return unavailable status when manifest_path is missing, a directory, unreadable, or exceeds MAX_MANIFEST_BYTES instead of crashing with unhandled file exceptions (#264).
 
 ## [0.6.0] - 2026-11-05
