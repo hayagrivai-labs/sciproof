@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* **PowerShell tab completion:** `examples/completions/sciproof.ps1` registers a `Register-ArgumentCompleter` for subcommands, options and `--format` values (#323).
 * **Robust signature verification (check_signature):** Gracefully return unavailable status when manifest_path is missing, a directory, unreadable, or exceeds MAX_MANIFEST_BYTES instead of crashing with unhandled file exceptions (#264).
 
 ## [0.6.0] - 2026-11-05

@@ -164,3 +164,16 @@ SciProof supports tab completion for subcommands and long options via `argcomple
 python -m pip install "sciproof[completion]"
 eval "$(register-python-argcomplete sciproof)"
 ```
+
+### PowerShell
+
+PowerShell (Windows PowerShell 5.1 and PowerShell 7+) has its own completion script that needs no
+extra package. It completes subcommands, options and the values of `--format`; paths fall back to
+the normal file-name completion. Load it in the current session, or add the same line to `$PROFILE`:
+
+```powershell
+. .\examples\completions\sciproof.ps1
+```
+
+Windows PowerShell 5.1 does not call completers for a bare `-` or `--`, so type the first letter
+of the option (for example `--f`, then Tab).
