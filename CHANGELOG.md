@@ -7,6 +7,7 @@ All notable changes are listed here. The format follows
 ## [Unreleased]
 
 * **Robust signature verification (check_signature):** Gracefully return unavailable status when manifest_path is missing, a directory, unreadable, or exceeds MAX_MANIFEST_BYTES instead of crashing with unhandled file exceptions (#264).
+* **Bash tab completion:** `examples/completions/sciproof.bash` completes subcommands, options and `--format` values with `complete -F`, without argcomplete (#322).
 
 ## [0.6.0] - 2026-11-05
 
