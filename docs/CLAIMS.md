@@ -22,10 +22,10 @@ sciproof verify baseline.sciproof.json
 
 `--claim OUTPUT 'LOCATION OP VALUE'`
 
-* `OUTPUT` is a `.json` or `.csv` file that you also declared with `--output` or
+* `OUTPUT` is a `.json`, `.csv` or `.tsv` file that you also declared with `--output` or
   `--output-numeric`.
 * `LOCATION` is the one that appears in difference reports: `$.key[0].name` for JSON,
-  `r3c1` (row, column; row 0 is the first line) for CSV. Keys that contain dots, spaces or brackets
+  `r3c1` (row, column; row 0 is the first line) for CSV and TSV. Keys that contain dots, spaces or brackets
   cannot be addressed.
 * `OP` is one of `==`, `!=`, `<`, `<=`, `>`, `>=`, `~=`.
 * `VALUE` is a JSON number, a string in double quotes, `true`, `false` or `null`. The ordering
