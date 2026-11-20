@@ -43,6 +43,7 @@ from sciproof.numeric import NumericFormatError, compare_detailed, load_numeric
 from sciproof.paths import resolve_inside
 from sciproof.policy import apply_policy, load_policy
 from sciproof.runner import (
+    MAX_WAIT_SECONDS,
     CommandInterrupted,
     CommandNotRunnable,
     CommandTimeout,
@@ -873,8 +874,11 @@ def _verify(
     ``confirm`` callback); without either, ``ConfirmationRequired`` is raised and nothing runs.
     Raises ``ManifestError`` for an unreadable or invalid manifest.
     """
-    if timeout is not None and not (math.isfinite(timeout) and timeout > 0):
-        raise UsageError("timeout must be a positive number of seconds")
+    if timeout is not None and not (math.isfinite(timeout) and 0 < timeout <= MAX_WAIT_SECONDS):
+        raise UsageError(
+            "timeout must be a positive number of seconds and at most "
+            f"{MAX_WAIT_SECONDS:.0f} seconds"
+        )
     if clean_env and not rerun:
         raise UsageError("--clean-env only applies to --rerun")
     if pass_env and not clean_env:

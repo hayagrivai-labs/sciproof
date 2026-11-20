@@ -8,6 +8,7 @@ import pytest
 
 from sciproof import verify as verify_module
 from sciproof.errors import ConfirmationRequired, UsageError
+from sciproof.runner import MAX_WAIT_SECONDS
 from sciproof.verify import Status, format_report, verify
 
 
@@ -413,7 +414,10 @@ def test_interrupted_rerun_restores_the_originals(project, monkeypatch):
     assert (project.root / "out" / "exact.txt").read_bytes() == original
 
 
-@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+@pytest.mark.parametrize(
+    "timeout",
+    [0, -1, float("nan"), float("inf"), 1e10, MAX_WAIT_SECONDS + 1],
+)
 def test_invalid_rerun_timeout_is_a_clean_error_and_runs_nothing(project, timeout):
     project.capture()
     runs = project.runs()
@@ -482,3 +486,17 @@ def test_a_rerun_that_cannot_start_leaves_the_outputs_in_place(project):
     report = verify(project.manifest, rerun=True, assume_yes=True)
     assert report.status is Status.INCONCLUSIVE
     assert (project.root / "out" / "exact.txt").read_bytes() == before
+
+
+def test_rerun_timeout_over_the_limit_names_the_limit_and_runs_nothing(project):
+    project.capture()
+    runs = project.runs()
+    with pytest.raises(UsageError, match="at most 2147484 seconds"):
+        verify(project.manifest, rerun=True, assume_yes=True, timeout=1e10)
+    assert project.runs() == runs
+
+
+def test_rerun_timeout_at_the_limit_is_accepted(project):
+    project.capture()
+    report = verify(project.manifest, rerun=True, assume_yes=True, timeout=MAX_WAIT_SECONDS)
+    assert report.status is Status.PASS

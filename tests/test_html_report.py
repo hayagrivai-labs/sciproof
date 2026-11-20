@@ -144,3 +144,59 @@ def test_html_report_visual_tolerance_meters():
     assert "rtol-slider-0" in html_content
     assert "atol-slider-0" in html_content
     assert "updateTolerance(0)" in html_content
+
+
+def _numeric_report(rtol, atol, details):
+    evidence = {
+        "kind": "rerun_output_numeric",
+        "path": "out/metrics.json",
+        "rtol": rtol,
+        "atol": atol,
+        "difference_details": details,
+    }
+    return Report(
+        name="numeric-exp",
+        rerun_requested=True,
+        checks=[Check(Status.FAIL, "output out/metrics.json", "differs", evidence=evidence)],
+    )
+
+
+def test_html_report_sliders_start_at_the_recorded_tolerances():
+    details = [
+        {
+            "location": "$.loss",
+            "recorded": 1.0,
+            "found": 1.0000001,
+            "abs_diff": 1e-7,
+            "rel_diff": 1e-7,
+            "allowed": 1e-9,
+        }
+    ]
+    html_content = report_html(_numeric_report(1e-9, 0.0, details))
+    assert 'id="rtol-slider-0" min="-13" max="0" step="0.01" value="-9.00"' in html_content
+    assert 'id="atol-slider-0" min="-13" max="0" step="0.01" value="-13"' in html_content
+    assert 'id="rtol-val-0">1.0e-9</span>' in html_content
+    assert 'id="atol-val-0">0</span>' in html_content
+    assert "rtolExp <= -13 ? 0" in html_content
+    assert "atolExp <= -13 ? 0" in html_content
+
+
+def test_html_report_shows_a_difference_without_a_distance_as_exceeded():
+    details = [
+        {
+            "location": "$.label",
+            "recorded": "ok",
+            "found": "changed",
+            "abs_diff": None,
+            "rel_diff": None,
+            "allowed": 0.0,
+        }
+    ]
+    html_content = report_html(_numeric_report(1e-9, 0.0, details))
+    row = html_content.split('id="row-0-$.label"', 1)[1].split("</tr>", 1)[0]
+    assert "n/a" in row
+    assert "gauge-fill exceeded" in row
+    assert 'style="width: 100.0%"' in row
+    assert 'meta-value" style="font-size:0.75rem">n/a</span>' in row
+    assert "comparable ? allowed.toExponential(2) : 'n/a'" in html_content
+    assert "const exceeded = !comparable || item.abs_diff > allowed;" in html_content

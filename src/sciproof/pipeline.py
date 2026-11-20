@@ -112,7 +112,7 @@ def verify_pipeline(path: Path | str) -> PipelineReport:
 
         rep = verify(m_path)
         step_status = rep.status
-        if violations and step_status is Status.PASS:
+        if violations:
             step_status = Status.FAIL
 
         # Record this step's outputs for downstream steps
@@ -126,6 +126,7 @@ def verify_pipeline(path: Path | str) -> PipelineReport:
             rep.reason
             if not violations
             else "chain-of-custody broken by modified intermediate files"
+            + (f"; {rep.reason}" if rep.reason else "")
         )
         report.steps.append(
             StepResult(
