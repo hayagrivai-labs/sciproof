@@ -158,6 +158,11 @@ printed to `stderr`.
 
 ## Shell completion
 
+Bash also has a standalone script, `examples/completions/sciproof.bash`, that needs no extra
+package: run `source examples/completions/sciproof.bash`, or add that line (with the full path) to
+`~/.bashrc`. It completes subcommands, options and the values of `--format`; paths use Bash's normal
+file-name completion.
+
 SciProof supports tab completion for subcommands and long options via `argcomplete`:
 
 ```bash
