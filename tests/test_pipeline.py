@@ -194,3 +194,54 @@ def test_pipeline_quiet_fail_reports_details_on_stderr(tmp_path: Path, capsys):
     captured = capsys.readouterr()
     assert captured.out.strip() == "RESULT: FAIL"
     assert "chain-of-custody break" in captured.err
+
+
+def test_pipeline_chain_of_custody_violation_overrides_inconclusive(tmp_path: Path):
+    prep_dir = tmp_path / "prep"
+    train_dir = tmp_path / "train"
+    prep_dir.mkdir()
+    train_dir.mkdir()
+
+    (prep_dir / "mid.txt").write_text("v2", encoding="utf-8")
+    prep = capture(
+        name="step1",
+        argv=["python", "-c", "pass"],
+        base=prep_dir,
+        outputs=["mid.txt"],
+    )
+
+    (train_dir / "mid.txt").write_text("v1", encoding="utf-8")
+    (train_dir / "extra.txt").write_text("cfg", encoding="utf-8")
+    (train_dir / "final.txt").write_text("v1!", encoding="utf-8")
+    train = capture(
+        name="step2",
+        argv=["python", "-c", "pass"],
+        base=train_dir,
+        inputs=["mid.txt", "extra.txt"],
+        outputs=["final.txt"],
+    )
+    (train_dir / "extra.txt").unlink()
+
+    pipeline_toml = tmp_path / "pipeline.toml"
+    pipeline_toml.write_text(
+        f"""[pipeline]
+name = "mixed_verdict"
+
+[[steps]]
+name = "step1"
+manifest = "prep/{prep.manifest_path.name}"
+
+[[steps]]
+name = "step2"
+manifest = "train/{train.manifest_path.name}"
+depends_on = ["step1"]
+""",
+        encoding="utf-8",
+    )
+
+    report = verify_pipeline(pipeline_toml)
+    step2 = report.steps[1]
+    assert step2.status is Status.FAIL
+    assert "chain-of-custody broken" in step2.reason
+    assert "INCONCLUSIVE because" in step2.reason
+    assert report.status is Status.FAIL
