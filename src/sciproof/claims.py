@@ -7,7 +7,7 @@ A claim names an output file, a location inside it and a comparison, for example
     out/table.csv      r3c1 == 12
 
 The location is exactly the one that appears in difference reports (``$.key[index]`` for JSON,
-``rNcM`` for CSV, where row 0 is the first line). Claims are stored in the manifest and are
+``rNcM`` for CSV and TSV, where row 0 is the first line). Claims are stored in the manifest and are
 checked by ``verify`` against the recorded output and, with ``--rerun``, against the output of
 the rerun.
 
@@ -32,7 +32,7 @@ MAX_CLAIMS = 100
 MAX_LOCATION_LENGTH = 300
 JSON_LOCATION = re.compile(r"^\$(?:\.[^\s\[\]\.#]+|\[\d+\])*$")
 CSV_LOCATION = re.compile(r"^r\d+c\d+$")
-SUPPORTED_SUFFIXES = (".json", ".csv")
+SUPPORTED_SUFFIXES = (".json", ".csv", ".tsv")
 MISSING = object()
 
 
@@ -84,7 +84,7 @@ def parse_claim(output: str, expression: str) -> dict[str, Any]:
             f"claim {expression!r}: unknown comparison {op!r}; use one of {', '.join(OPS)}"
         )
     if not output.lower().endswith(SUPPORTED_SUFFIXES):
-        raise UsageError(f"claim on {output!r}: claims support .json and .csv outputs")
+        raise UsageError(f"claim on {output!r}: claims support .json, .csv and .tsv outputs")
     if not location_matches_file(location, output):
         example = "$.key[0].name" if output.lower().endswith(".json") else "r2c1"
         raise UsageError(

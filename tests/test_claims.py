@@ -68,8 +68,8 @@ def test_an_approximate_claim_carries_its_tolerances():
         (OUT, "$.a b >= 1", "unknown comparison"),
         (OUT, "r1c1 >= 1", "not a location"),
         ("t.csv", "$.a >= 1", "not a location"),
-        ("data.npy", "$.a >= 1", "support .json and .csv"),
-        ("notes.txt", "$.a >= 1", "support .json and .csv"),
+        ("data.npy", "$.a >= 1", "support .json, .csv and .tsv"),
+        ("notes.txt", "$.a >= 1", "support .json, .csv and .tsv"),
         (OUT, "$.a >= abc", "must be a JSON number"),
         (OUT, "$.a >= NaN", "must be a JSON number"),
         (OUT, "$.a >= Infinity", "must be a JSON number"),
@@ -209,7 +209,7 @@ def test_a_claim_needs_a_declared_output(project):
 
 
 def test_a_claim_on_an_output_that_cannot_be_read_is_refused(project):
-    with pytest.raises(UsageError, match="claims support .json and .csv"):
+    with pytest.raises(UsageError, match="claims support .json, .csv and .tsv"):
         project.capture(claims=[("out/exact.txt", "$.x >= 1")])
     code = "open('bad.json', 'w').write('{broken')"
     with pytest.raises(CaptureError, match="claim on 'bad.json'.*not valid JSON"):
@@ -232,6 +232,21 @@ def test_claims_work_on_csv_outputs(project):
         claims=[("t.csv", "r2c1 <= 0.25"), ("t.csv", 'r0c1 == "loss"')],
     )
     assert not [w for w in result.warnings if "claim" in w]
+    assert verify(project.manifest).status is Status.PASS
+
+
+def test_claims_work_on_tsv_outputs(project):
+    code = "open('t.tsv', 'w').write('epoch\\tloss\\n1\\t0.5\\n2\\t0.25\\n')"
+    result = project.capture(
+        argv=[sys.executable, "-c", code],
+        inputs=["data.json"],
+        outputs=["t.tsv"],
+        numeric_outputs=[],
+        claims=[("t.tsv", "r2c1 <= 0.25"), ("t.tsv", 'r0c1 == "loss"')],
+    )
+    assert not [w for w in result.warnings if "claim" in w]
+    assert result.manifest["claims"][0]["location"] == "r2c1"
+    load_manifest(project.manifest)
     assert verify(project.manifest).status is Status.PASS
 
 
