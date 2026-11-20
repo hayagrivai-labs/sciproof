@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import math
 from typing import TYPE_CHECKING, Any
 
 from sciproof import __version__
@@ -221,6 +222,25 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 """
 
 
+# Log10 slider range: the lowest stop means exactly 0, then 1e-12 .. 1.
+_SLIDER_ZERO = -13
+
+
+def _slider_value(tol: float) -> str:
+    """Slider position (log10) for a recorded tolerance; 0 maps to the lowest stop."""
+    if not (math.isfinite(tol) and tol > 0):
+        return str(_SLIDER_ZERO)
+    return f"{min(0.0, max(-12.0, math.log10(tol))):.2f}"
+
+
+def _tolerance_label(tol: float) -> str:
+    """Label matching the slider's JavaScript formatting, e.g. ``1.0e-9`` or ``0``."""
+    if not (math.isfinite(tol) and tol > 0):
+        return "0"
+    mantissa, exponent = f"{tol:.1e}".split("e")
+    return f"{mantissa}e{int(exponent)}"
+
+
 def _render_numeric_section(report: Report) -> tuple[str, str]:
     """Render interactive tolerance tables and slider controls for numeric checks."""
     tables: list[str] = []
@@ -244,12 +264,20 @@ def _render_numeric_section(report: Report) -> tuple[str, str]:
             loc = html.escape(str(d.get("location") or "-"))
             rec = d.get("recorded")
             fnd = d.get("found")
-            adiff = float(d.get("abs_diff", 0.0) or 0.0)
+            raw_adiff = d.get("abs_diff")
+            # No numeric distance (a changed string, NaN, inf vs finite): not comparable, so it
+            # is never shown as within tolerance.
+            comparable = raw_adiff is not None
+            adiff = float(raw_adiff) if comparable else None
             rdiff = float(d.get("rel_diff", 0.0) or 0.0)
             allowed = float(d.get("allowed", 0.0) or 0.0)
-            ratio = (adiff / allowed * 100) if allowed > 0 else 100.0
-            gauge_pct = min(100.0, max(0.0, ratio))
-            is_exceeded = adiff > allowed
+            if comparable:
+                ratio = (adiff / allowed * 100) if allowed > 0 else 100.0
+                gauge_pct = min(100.0, max(0.0, ratio))
+                is_exceeded = adiff > allowed
+            else:
+                gauge_pct = 100.0
+                is_exceeded = True
 
             clean_details.append(
                 {
@@ -266,10 +294,12 @@ def _render_numeric_section(report: Report) -> tuple[str, str]:
                 f'<tr id="row-{index}-{loc}">'
                 f'<td class="subject">{loc}</td>'
                 f"<td>{rec}</td><td>{fnd}</td>"
-                f"<td>{adiff:.4g}</td><td>{rdiff:.4g}</td>"
+                f"<td>{f'{adiff:.4g}' if comparable else 'n/a'}</td>"
+                f"<td>{f'{rdiff:.4g}' if comparable else 'n/a'}</td>"
                 f'<td><div class="gauge"><div class="{gauge_cls}" '
                 f'style="width: {gauge_pct:.1f}%"></div></div>'
-                f'<span class="meta-value" style="font-size:0.75rem">{allowed:.4g}</span></td>'
+                f'<span class="meta-value" style="font-size:0.75rem">'
+                f"{f'{allowed:.4g}' if comparable else 'n/a'}</span></td>"
                 f"</tr>"
             )
 
@@ -288,15 +318,17 @@ def _render_numeric_section(report: Report) -> tuple[str, str]:
             f"<h2>Numeric Comparison: {path}</h2>"
             f'<div class="slider-group">'
             f"<label>Tolerance rtol (10<sup>x</sup>):</label>"
-            f'<input type="range" id="rtol-slider-{index}" min="-12" max="0" step="0.5" '
-            f'value="-6" oninput="updateTolerance({index})">'
-            f'<span class="slider-val" id="rtol-val-{index}">1e-6</span>'
+            f'<input type="range" id="rtol-slider-{index}" '
+            f'min="{_SLIDER_ZERO}" max="0" step="0.01" '
+            f'value="{_slider_value(rtol)}" oninput="updateTolerance({index})">'
+            f'<span class="slider-val" id="rtol-val-{index}">{_tolerance_label(rtol)}</span>'
             f"</div>"
             f'<div class="slider-group">'
             f"<label>Tolerance atol (10<sup>x</sup>):</label>"
-            f'<input type="range" id="atol-slider-{index}" min="-12" max="0" step="0.5" '
-            f'value="-6" oninput="updateTolerance({index})">'
-            f'<span class="slider-val" id="atol-val-{index}">1e-6</span>'
+            f'<input type="range" id="atol-slider-{index}" '
+            f'min="{_SLIDER_ZERO}" max="0" step="0.01" '
+            f'value="{_slider_value(atol)}" oninput="updateTolerance({index})">'
+            f'<span class="slider-val" id="atol-val-{index}">{_tolerance_label(atol)}</span>'
             f"</div>"
             f"<table><thead><tr>"
             f"<th>Location</th><th>Recorded</th><th>Found</th><th>Abs. Diff</th>"
@@ -314,26 +346,30 @@ def _render_numeric_section(report: Report) -> tuple[str, str]:
       if (!ds) return;
       const rtolExp = parseFloat(document.getElementById(`rtol-slider-${{idx}}`).value);
       const atolExp = parseFloat(document.getElementById(`atol-slider-${{idx}}`).value);
-      const rtol = Math.pow(10, rtolExp);
-      const atol = Math.pow(10, atolExp);
-      document.getElementById(`rtol-val-${{idx}}`).innerText = rtol.toExponential(1);
-      document.getElementById(`atol-val-${{idx}}`).innerText = atol.toExponential(1);
+      // The lowest slider stop means exactly 0 (atol=0 is the default and must be representable).
+      const rtol = rtolExp <= {_SLIDER_ZERO} ? 0 : Math.pow(10, rtolExp);
+      const atol = atolExp <= {_SLIDER_ZERO} ? 0 : Math.pow(10, atolExp);
+      document.getElementById(`rtol-val-${{idx}}`).innerText =
+        rtol === 0 ? '0' : rtol.toExponential(1);
+      document.getElementById(`atol-val-${{idx}}`).innerText =
+        atol === 0 ? '0' : atol.toExponential(1);
 
       ds.items.forEach(item => {{
         const row = document.getElementById(`row-${{idx}}-${{item.loc}}`);
         if (!row) return;
         const maxVal = Math.max(Math.abs(item.recorded || 0), Math.abs(item.found || 0));
         const allowed = Math.max(rtol * maxVal, atol);
-        const ratio = allowed > 0 ? (item.abs_diff / allowed) * 100 : 100;
+        const comparable = item.abs_diff !== null;
+        const ratio = comparable && allowed > 0 ? (item.abs_diff / allowed) * 100 : 100;
         const pct = Math.min(100, Math.max(0, ratio));
-        const exceeded = item.abs_diff > allowed;
+        const exceeded = !comparable || item.abs_diff > allowed;
         const gauge = row.querySelector('.gauge-fill');
         if (gauge) {{
           gauge.style.width = pct.toFixed(1) + '%';
           gauge.className = 'gauge-fill' + (exceeded ? ' exceeded' : '');
         }}
         const valSpan = row.querySelector('.meta-value');
-        if (valSpan) valSpan.innerText = allowed.toExponential(2);
+        if (valSpan) valSpan.innerText = comparable ? allowed.toExponential(2) : 'n/a';
       }});
     }}
   </script>"""

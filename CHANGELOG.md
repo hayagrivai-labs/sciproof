@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
+* **HTML report tolerance inspector starts from the recorded tolerances:** the rtol/atol sliders are initialised from the manifest (including `atol = 0`, now a representable stop), and a difference with no numeric distance (changed string, NaN, inf vs finite) is shown as exceeded instead of an empty meter (#314).
 * **`verify --rerun` / `badge --rerun` reject an over-limit `--timeout` up front:** the same bound as `capture` now applies, so a value above the limit is a usage error (exit 3) before anything is confirmed, backed up or removed, instead of an INCONCLUSIVE `rerun` check (#315).
 * **Robust signature verification (check_signature):** Gracefully return unavailable status when manifest_path is missing, a directory, unreadable, or exceeds MAX_MANIFEST_BYTES instead of crashing with unhandled file exceptions (#264).
 
