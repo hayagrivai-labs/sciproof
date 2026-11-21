@@ -99,7 +99,7 @@ your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/hayagrivai-labs/sciproof
-    rev: v0.6.0
+    rev: v0.7.0
     hooks:
       - id: sciproof-check
       # Optional: validate the conventional sciproof.policy.toml as well.
@@ -224,7 +224,7 @@ the step unless the result is `PASS`.
 
 ```yaml
       - uses: actions/checkout@v7
-      - uses: hayagrivai-labs/sciproof@v0.6.0
+      - uses: hayagrivai-labs/sciproof@v0.7.0
         with:
           manifest: baseline.sciproof.json
           policy: sciproof.policy.toml     # optional

@@ -6,11 +6,27 @@ All notable changes are listed here. The format follows
 
 ## [Unreleased]
 
-* **PowerShell tab completion:** `examples/completions/sciproof.ps1` registers a `Register-ArgumentCompleter` for subcommands, options and `--format` values (#323).
-* **HTML report tolerance inspector starts from the recorded tolerances:** the rtol/atol sliders are initialised from the manifest (including `atol = 0`, now a representable stop), and a difference with no numeric distance (changed string, NaN, inf vs finite) is shown as exceeded instead of an empty meter (#314).
-* **`verify --rerun` / `badge --rerun` reject an over-limit `--timeout` up front:** the same bound as `capture` now applies, so a value above the limit is a usage error (exit 3) before anything is confirmed, backed up or removed, instead of an INCONCLUSIVE `rerun` check (#315).
-* **Robust signature verification (check_signature):** Gracefully return unavailable status when manifest_path is missing, a directory, unreadable, or exceeds MAX_MANIFEST_BYTES instead of crashing with unhandled file exceptions (#264).
-* **Bash tab completion:** `examples/completions/sciproof.bash` completes subcommands, options and `--format` values with `complete -F`, without argcomplete (#322).
+## [0.7.0] - 2026-11-22
+
+* **Native PowerShell Tab Completion:** `examples/completions/sciproof.ps1` registers a zero-dependency argument completer for PowerShell 5.1 and PowerShell 7+ covering all 14 subcommands, options, and fixed `--format` choices (#323, #334).
+* **Native Bash Tab Completion:** `examples/completions/sciproof.bash` provides standalone completion via `complete -F` compatible with Bash 3.2+ on macOS and Linux without third-party packages (#322, #335).
+* **Interactive HTML Report Enhancements:** Tolerance sliders start from recorded `rtol`/`atol` values with an explicit `atol = 0` stop, and non-comparable mismatches (changed strings, NaNs, infinities) are visually flagged as exceeded with `n/a` labels (#314, #333). Rendered scope notes and unverified assumptions are included (#233, #303).
+* **Claims on TSV Outputs:** Extended claims validation to `.tsv` files using `rNcM` row/column syntax (#316, #332).
+* **Pipeline Chain-of-Custody Failure Priority:** Chain-of-custody breaks now unconditionally produce a `FAIL` verdict on pipeline steps even when other checks are `INCONCLUSIVE`, preserving diagnostic reasons (#312, #331).
+* **Up-Front Rerun Timeout Validation:** `verify --rerun` and `badge --rerun` validate `--timeout` against `MAX_WAIT_SECONDS` up front, raising a usage error before confirmation prompts or touching output files (#315, #330).
+* **Evidence Artifact Exclusion in Globs:** Glob pattern expansion in `capture` safely skips existing `.sciproof.json` manifests and snapshot directories (#318).
+* **Comprehensive Shipped Features Documentation:** Documented RO-Crate JSON-LD exports, `.npz` multi-array archive comparison, input/output glob patterns, and SARIF 2.1.0 and interactive HTML report formats across all documentation guides (#227, #311).
+* **Near-Zero Output Tolerance Derivation:** `record` and `calibrate` derive absolute tolerance `atol` when values fluctuate near zero, preventing inflated relative tolerances (#236, #307).
+* **Pytest Plugin Safety Options:** Forward `--sciproof-clean-env`, `--sciproof-pass-env`, `--sciproof-timeout`, and policy options in pytest invocation (#234, #308), and handle corrupt manifests cleanly (#244, #299).
+* **GitHub Action Interpreter Preservation:** Preserves custom ambient Python interpreters (virtual environments/conda) on `rerun: true` when `python-version` is empty, and adds `extras` input support for optional dependencies like NumPy (#239, #309).
+* **In-Toto Predicate Specification:** Comprehensive specification and structural validation tests for the `#experiment-v1` in-toto predicate format (#240, #310).
+* **SARIF 2.1.0 Enhancements:** Resolves artifact locations to repo-relative URIs and links non-file checks to the manifest (#232, #306).
+* **Windows Environment Variable Normalization:** Case-folds and deduplicates environment variable keys on Windows in clean environment reruns (#248, #298).
+* **Sitecustomize Module Chaining:** Re-execution environment hooks chain cleanly to existing sitecustomize modules without masking them (#238, #305).
+* **Calibrate Seed Bounds:** Validates seed bounds and prevents run count overrides in Monte Carlo calibration (#245, #302).
+* **Lockfile Visibility:** Displays captured lockfile hashes in environment inspection summaries (#242, #301).
+* **Markdown Manifest Listing:** Added note column in `sciproof list --format markdown` (#243, #300).
+* **Robust Signature Verification:** Gracefully returns unavailable status when manifest_path is missing, a directory, unreadable, or exceeds `MAX_MANIFEST_BYTES` (#264).
 
 ## [0.6.0] - 2026-11-05
 

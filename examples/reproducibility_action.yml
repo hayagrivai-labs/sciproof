@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Verify Experiment Evidence
-        uses: hayagrivai-labs/sciproof@v0.6.0
+        uses: hayagrivai-labs/sciproof@v0.7.0
         with:
           manifest: baseline.sciproof.json
           # Optional: turn on rerun if your experiment runs quickly in CI:

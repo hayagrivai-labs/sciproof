@@ -10,7 +10,7 @@ the package is internal and may change in any release.
 
 """
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 # The imports follow ``__version__`` on purpose: ``capture`` reads it while it is being imported.
 

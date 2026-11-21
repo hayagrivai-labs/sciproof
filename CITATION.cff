@@ -12,9 +12,9 @@ authors:
     orcid: "https://orcid.org/0009-0007-7867-5939"
     affiliation: "HayagrivAI Labs"
   - name: "HayagrivAI Labs"
-version: 0.6.0
+version: 0.7.0
 doi: "10.5281/zenodo.23676138"
-date-released: 2026-11-05
+date-released: 2026-11-22
 license: MIT
 repository-code: "https://github.com/hayagrivai-labs/sciproof"
 url: "https://hayagrivai-labs.github.io/sciproof/"

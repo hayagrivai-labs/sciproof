@@ -1,7 +1,7 @@
 # Tutorial: from a script to CI
 
 This walkthrough uses only Python's standard library and SciProof. Start in an empty directory
-with Python 3.11 or newer and install `pip install sciproof==0.6.0`. Commands below were run with
+with Python 3.11 or newer and install `pip install sciproof==0.7.0`. Commands below were run with
 the published SciProof 0.4.1 on macOS / Python 3.13.15. Output blocks are unedited; random spreads
 and suggested tolerances will differ in your run.
 
@@ -185,7 +185,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: hayagrivai-labs/sciproof@v0.6.0
+      - uses: hayagrivai-labs/sciproof@v0.7.0
         with:
           manifest: fit.sciproof.json
           version: "0.6.0"
