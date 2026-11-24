@@ -100,7 +100,19 @@ def verify_pipeline(path: Path | str) -> PipelineReport:
         for dep_name in depends_on:
             if dep_name not in step_defs:
                 raise UsageError(f"step {s_name!r} depends on unknown step {dep_name!r}")
-            dep_out = step_outputs.get(dep_name, {})
+            # Must precede the has-not-run check: the current step is not yet in
+            # step_outputs, so a self-dependency would otherwise get the wrong message.
+            if dep_name == s_name:
+                raise UsageError(f"step {s_name!r} cannot depend on itself")
+            # step_outputs only holds steps already processed in this loop, so a
+            # missing key means a forward reference (or the back-edge of a cycle).
+            if dep_name not in step_outputs:
+                raise UsageError(
+                    f"step {s_name!r} depends on {dep_name!r}, which has not run yet. "
+                    "Steps must be ordered topologically or declare prerequisites "
+                    "that appear before them."
+                )
+            dep_out = step_outputs[dep_name]
             # Check inputs of this step that were produced by dep_name
             for inp in manifest.get("inputs", []):
                 ipath = inp["path"]

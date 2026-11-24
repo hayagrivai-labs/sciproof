@@ -245,3 +245,85 @@ depends_on = ["step1"]
     assert "chain-of-custody broken" in step2.reason
     assert "INCONCLUSIVE because" in step2.reason
     assert report.status is Status.FAIL
+
+
+def _capture_step(tmp_path: Path, name: str) -> str:
+    """Capture a trivial step that writes <name>.out; return its manifest filename."""
+    out = tmp_path / f"{name}.out"
+    out.write_text(name, encoding="utf-8")
+    res = capture(
+        name=name,
+        argv=["python", "-c", "pass"],
+        base=tmp_path,
+        outputs=[out.name],
+    )
+    return res.manifest_path.name
+
+
+def test_pipeline_self_dependency_raises(tmp_path: Path):
+    manifest = _capture_step(tmp_path, "train")
+    pipeline_toml = tmp_path / "pipeline.toml"
+    pipeline_toml.write_text(
+        f"""[pipeline]
+name = "self_dep"
+
+[[steps]]
+name = "train"
+manifest = "{manifest}"
+depends_on = ["train"]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(UsageError, match="step 'train' cannot depend on itself"):
+        verify_pipeline(pipeline_toml)
+
+
+def test_pipeline_forward_reference_raises(tmp_path: Path):
+    train_manifest = _capture_step(tmp_path, "train")
+    eval_manifest = _capture_step(tmp_path, "eval")
+    # eval is listed BEFORE train, but depends on it.
+    pipeline_toml = tmp_path / "pipeline.toml"
+    pipeline_toml.write_text(
+        f"""[pipeline]
+name = "forward_ref"
+
+[[steps]]
+name = "eval"
+manifest = "{eval_manifest}"
+depends_on = ["train"]
+
+[[steps]]
+name = "train"
+manifest = "{train_manifest}"
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(UsageError, match="step 'eval' depends on 'train', which has not run yet"):
+        verify_pipeline(pipeline_toml)
+
+
+def test_pipeline_two_step_cycle_raises(tmp_path: Path):
+    a_manifest = _capture_step(tmp_path, "a")
+    b_manifest = _capture_step(tmp_path, "b")
+    pipeline_toml = tmp_path / "pipeline.toml"
+    pipeline_toml.write_text(
+        f"""[pipeline]
+name = "cycle"
+
+[[steps]]
+name = "a"
+manifest = "{a_manifest}"
+depends_on = ["b"]
+
+[[steps]]
+name = "b"
+manifest = "{b_manifest}"
+depends_on = ["a"]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(UsageError, match="which has not run yet"):
+        verify_pipeline(pipeline_toml)
