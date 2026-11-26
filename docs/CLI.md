@@ -170,6 +170,24 @@ python -m pip install "sciproof[completion]"
 eval "$(register-python-argcomplete sciproof)"
 ```
 
+### Zsh
+
+Zsh has a standalone definition, `examples/completions/_sciproof`, with descriptions for the
+current subcommands and options, fixed choices, and file/directory completion. It needs no
+optional Python package and does not execute SciProof while completing. Add its directory to
+`fpath` **before** running `compinit` in `~/.zshrc` (replace the example with your checkout path):
+
+```zsh
+fpath=(/path/to/sciproof/examples/completions $fpath)
+autoload -Uz compinit
+compinit
+```
+
+Start a new Zsh session, then try `sciproof ver<Tab>` or `sciproof verify --format j<Tab>`.
+Alternatively, copy `_sciproof` into a directory already on your `fpath` before `compinit` runs.
+After `capture`, `record`, or `suggest-inputs` options, the command being recorded uses Zsh's
+normal command completion, including after `--`.
+
 ### PowerShell
 
 PowerShell (Windows PowerShell 5.1 and PowerShell 7+) has its own completion script that needs no
