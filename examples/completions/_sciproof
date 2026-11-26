@@ -1,0 +1,235 @@
+#compdef sciproof
+#
+# Add this directory to fpath before running compinit, for example:
+#   fpath=(/path/to/sciproof/examples/completions $fpath)
+#   autoload -Uz compinit && compinit
+# No Python process or optional package is needed during completion.
+# Keep these definitions in sync with src/sciproof/cli.py.
+
+local context state state_descr line
+typeset -A opt_args
+local -a commands args
+
+commands=(
+    'capture:run a command once and record evidence'
+    'verify:check a manifest (integrity by default, re-execution only with --rerun)'
+    'suggest-inputs:run a Python command once and list files it read that are not declared'
+    'sign:sign a manifest with an OpenSSH private key (writes <manifest>.sig)'
+    'badge:verify a manifest and write a static SVG badge with the result'
+    'record:capture an experiment without declaring files: inputs and outputs are detected'
+    'update:capture the recorded experiment again (re-baseline) and show what changed'
+    'calibrate:run the recorded command several times and measure how much its outputs vary'
+    'diff:compare two manifests: what changed between two recorded runs? (executes nothing)'
+    'list:list the manifests in a directory; with --check, verify all of them (no rerun)'
+    'export:write a manifest in another format (in-toto Statement v1, OpenLineage events)'
+    'pipeline:verify multi-step pipeline DAG and chain of custody'
+    'check-policy:validate a policy file and list its rules (nothing is verified)'
+    'inspect:show a readable summary; never executes anything'
+)
+
+_arguments -C \
+    '(-h --help)'{-h,--help}'[Show help]' \
+    '--version[Show version]' \
+    '(-q --quiet)'{-q,--quiet}'[Suppress decorative output]' \
+    '1:command:->command' \
+    '*::argument:->arguments'
+
+case $state in
+    command)
+        _describe 'command' commands
+        ;;
+    arguments)
+        case $line[1] in
+            capture)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    '--name=[experiment name]:name:'
+                    '*--input=[declare an input file or directory]:PATH:_files'
+                    '*--inputs=[declare an input file or directory]:PATH:_files'
+                    '*--output=[declare an output file or directory compared by exact hash]:PATH:_files'
+                    '*--outputs=[declare an output file or directory compared by exact hash]:PATH:_files'
+                    '*--output-numeric=[declare a .json/.csv/.tsv output compared with a numeric tolerance]:PATH:_files'
+                    '--rtol=[relative tolerance for numeric outputs]:rtol:'
+                    '--atol=[absolute tolerance for numeric outputs]:atol:'
+                    '*--tolerance=[tolerance]:OUTPUT:_files:SETTINGS:'
+                    '--timeout=[stop the command after this many seconds]:SECONDS:'
+                    '--max-log-bytes=[keep at most this many bytes of stdout and of stderr in the manifest]:max log bytes:'
+                    '*--claim=[claim]:OUTPUT:_files:EXPRESSION:'
+                    '--note=[free text stored in the manifest]:TEXT:'
+                    '--record-hardware[also record the CPU count, processor and NVIDIA GPUs]'
+                    '*--record-env=[also record this environment variable]:NAME:_parameters'
+                    '--force[overwrite an existing manifest]'
+                    '--allow-nonzero[exit with status 0 even if the command failed]'
+                    '*::command:_normal'
+                )
+                ;;
+            verify)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :manifest:_files
+                    '--rerun[EXECUTE the recorded command again and compare results]'
+                    '--yes[do not ask for confirmation before --rerun]'
+                    '--strict-env[with --rerun\: report INCONCLUSIVE if the environment differs]'
+                    '--clean-env[with --rerun\: give the command only a minimal environment]'
+                    '*--pass-env=[with --clean-env\: also pass this environment variable]:NAME:_parameters'
+                    '--allowed-signers=[allowed signers]:FILE:_files'
+                    '--timeout=[stop the rerun after this many seconds]:SECONDS:'
+                    '--json[print the report as one JSON object]'
+                    '--format=[report format\: text]:format:(text json markdown junit sarif html)'
+                    '--policy=[also check the rules of this policy file]:FILE:_files'
+                    '--save-json=[also write the JSON report to this file]:FILE:_files'
+                    '-q[minimal terminal output\: suppress banners and decorative headers]'
+                    '--quiet[minimal terminal output\: suppress banners and decorative headers]'
+                )
+                ;;
+            suggest-inputs)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    '*--input=[input]:PATH:_files'
+                    '*--output=[output]:PATH:_files'
+                    '--timeout=[timeout]:SECONDS:'
+                    '*::command:_normal'
+                )
+                ;;
+            sign)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :manifest:_files
+                    '--key=[private key file]:KEY:_files'
+                )
+                ;;
+            badge)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :manifest:_files
+                    '-o+[output]:FILE:_files'
+                    '--output=[output]:FILE:_files'
+                    '--rerun[EXECUTE the recorded command again]'
+                    '--yes[do not ask for confirmation]'
+                    '--clean-env[with --rerun\: minimal environment]'
+                    '*--pass-env=[with --clean-env\: also pass this environment variable]:NAME:_parameters'
+                    '--strict-env[fail or report inconclusive if the environment differs on rerun]'
+                    '--allowed-signers=[allowed signers]:FILE:_files'
+                    '--policy=[also check the rules of this policy file]:FILE:_files'
+                    '--timeout=[timeout]:SECONDS:'
+                )
+                ;;
+            record)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    '--name=[experiment name]:name:'
+                    '*--input=[an input to add by hand]:PATH:_files'
+                    '*--inputs=[an input to add by hand]:PATH:_files'
+                    '*--exclude=[a file or directory that is neither input nor output]:PATH:_files'
+                    '--fast[skip the second run]'
+                    '--timeout=[per run]:SECONDS:'
+                    '--max-log-bytes=[max log bytes]:max log bytes:'
+                    '--note=[free text stored in the manifest]:TEXT:'
+                    '--record-hardware[record hardware]'
+                    '*--record-env=[also record this environment variable]:NAME:_parameters'
+                    '--force[overwrite an existing manifest]'
+                    '-q[minimal terminal output\: suppress banners and decorative headers]'
+                    '--quiet[minimal terminal output\: suppress banners and decorative headers]'
+                    '*::command:_normal'
+                )
+                ;;
+            update)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :manifest:_files
+                    '--yes[do not ask for confirmation]'
+                    '--dry-run[show what would happen]'
+                    '--note=[replace the note of the manifest]:TEXT:'
+                    '--timeout=[timeout]:SECONDS:'
+                )
+                ;;
+            calibrate)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :manifest:_files
+                    '--runs=[2 to 50]:N:'
+                    '--seeds=[comma-separated random seeds for Monte Carlo sampling]:SEEDS:'
+                    '--threads=[comma-separated thread counts for concurrency drift profiling]:THREADS:'
+                    '--yes[do not ask for confirmation]'
+                    '--timeout=[per run]:SECONDS:'
+                    '--format=[report format]:format:(text json)'
+                    '--json[same as --format json]'
+                    '-q[minimal terminal output\: suppress banners and decorative headers]'
+                    '--quiet[minimal terminal output\: suppress banners and decorative headers]'
+                )
+                ;;
+            diff)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :old:_files
+                    :new:_files
+                    '--json[same as --format json]'
+                    '--format=[format]:format:(text json markdown)'
+                    '-q[minimal terminal output\: suppress banners and decorative headers]'
+                    '--quiet[minimal terminal output\: suppress banners and decorative headers]'
+                )
+                ;;
+            list)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    ::directory:_directories
+                    '-r[also look in subdirectories]'
+                    '--recursive[also look in subdirectories]'
+                    '--check[verify every manifest]'
+                    '--json[same as --format json]'
+                    '--format=[format]:format:(text json markdown junit)'
+                )
+                ;;
+            export)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :manifest:_files
+                    '--format=[in-toto\: an unsigned Statement v1 with hashes]:format:(in-toto dsse openlineage latex typst ro-crate)'
+                    '*--value=[value]:NAME::OUTPUT:_files:LOCATION:'
+                    '-o+[write here]:FILE:_files'
+                    '--output=[write here]:FILE:_files'
+                )
+                ;;
+            pipeline)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    ':action:(verify)'
+                    ':pipeline file:_files'
+                    '-q[minimal terminal output\: suppress banners and step details]'
+                    '--quiet[minimal terminal output\: suppress banners and step details]'
+                )
+                ;;
+            check-policy)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :policy:_files
+                )
+                ;;
+            inspect)
+                args=(
+                    '-h[show this help message and exit]'
+                    '--help[show this help message and exit]'
+                    :manifest:_files
+                )
+                ;;
+        esac
+        # REMAINDER belongs to the recorded command, including its options.
+        case $line[1] in
+            capture|record|suggest-inputs) _arguments -s -S -A "-*" $args ;;
+            *) _arguments -s -S $args ;;
+        esac
+        ;;
+esac
