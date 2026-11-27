@@ -182,3 +182,22 @@ the normal file-name completion. Load it in the current session, or add the same
 
 Windows PowerShell 5.1 does not call completers for a bare `-` or `--`, so type the first letter
 of the option (for example `--f`, then Tab).
+
+
+### Tcsh
+
+Tcsh has its own completion script that needs no extra package. Load it in the current shell from the repository root:
+
+```tcsh
+source examples/completions/sciproof.tcsh
+```
+
+To load it in every session, add the same command with the full path to the script to `~/.tcshrc` (Tcsh reads `~/.cshrc` when `~/.tcshrc` does not exist).
+
+It completes subcommands, global options (`-h`, `--help`, `--version`, `-q`, `--quiet`) when they are the first word, subcommand options, and `--format` values in both forms: `--format json` and `--format=json`. Paths (manifests, files, directories) and other option values use Tcsh's normal file-name completion.
+
+Tcsh completion rules cannot tell which subcommand an option belongs to, so after a subcommand the script offers options and `--format` values from all subcommands; `sciproof` itself rejects combinations that do not exist. Other limitations:
+
+- A global option before the subcommand is not followed by subcommand completion. For example, `sciproof -q ver<Tab>` does not complete the subcommand.
+- `capture`, `record` and `suggest-inputs` take the command to run after `--`. The script does not complete command names there because static Tcsh rules cannot distinguish that separator from an option. Later words use file-name completion, and words starting with a dash are completed as `sciproof` options.
+- The rule that completes `verify` after `pipeline` matches the beginning of the previous word. After a file whose name begins with `pipeline` (for example, `pipeline.toml`), the next word may therefore complete as `verify` instead of a file name.
