@@ -131,5 +131,6 @@ def test_consumes_the_declared_number_of_values_before_offering_options(tmp_path
         arity = action.nargs if isinstance(action.nargs, int) else 1
         value = str(next(iter(action.choices))) if action.choices is not None else "1"
         values = " ".join([value] * arity)
-        line = f"sciproof {command} {action.option_strings[-1]} {values} --he"
-        assert _complete(tmp_path, line) == {"--help"}
+        # Use the full option set: older Fish releases also return fuzzy matches for --he.
+        line = f"sciproof {command} {action.option_strings[-1]} {values} -"
+        assert _complete(tmp_path, line) == _options(parser)
