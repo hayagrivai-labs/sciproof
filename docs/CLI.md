@@ -182,3 +182,18 @@ the normal file-name completion. Load it in the current session, or add the same
 
 Windows PowerShell 5.1 does not call completers for a bare `-` or `--`, so type the first letter
 of the option (for example `--f`, then Tab).
+
+### Fish
+
+Fish has a standalone script that needs no optional Python package. Load it in the current
+session:
+
+```fish
+source examples/completions/sciproof.fish
+```
+
+To load it automatically, copy `sciproof.fish` into `~/.config/fish/completions/` (or your Fish
+configuration directory's `completions/` folder). It completes the current subcommands, their
+options, fixed choices such as `--format`, and file/directory arguments. After `capture`,
+`record`, or `suggest-inputs` options, it delegates completion of the recorded command to Fish,
+including after `--`; completion does not run the experiment or write evidence.
